@@ -21,7 +21,7 @@ jobs:
 
     env:
       TZ: Asia/Shanghai
-      CONFIG_PATH: ${{ runner.temp }}/roco-config.json
+      CONFIG_PATH: /tmp/roco-config.json
       ROCOM_API_KEY: ${{ secrets.ROCOM_API_KEY }}
       ROCOM_API_URL: ${{ vars.ROCOM_API_URL }}
       SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
