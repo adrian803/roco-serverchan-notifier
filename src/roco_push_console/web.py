@@ -192,7 +192,10 @@ async def api_save_config(request: Request) -> JSONResponse:
         if provider.get("type") not in PROVIDER_TYPES:
             raise HTTPException(status_code=400, detail=f"未知通道类型: {provider.get('type')}")
 
-    settings = store.update(payload)
+    try:
+        settings = store.update(payload)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"配置保存失败: {exc}") from exc
     scheduler.wake()
     return JSONResponse({"ok": True, "config": settings.public_dict()})
 

@@ -31,11 +31,13 @@ RUN groupadd --system app \
 COPY --from=builder --chown=app:app /opt/venv /opt/venv
 COPY --chown=app:app pyproject.toml README.md main.py ./
 COPY --chown=app:app src ./src
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-USER app
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 19892
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD python -c "import os, socket; s = socket.create_connection(('127.0.0.1', int(os.environ.get('WEB_PORT', '19892'))), 3); s.close()"
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["python", "-m", "roco_push_console.web"]

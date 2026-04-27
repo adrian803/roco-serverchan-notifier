@@ -69,6 +69,7 @@ http://服务器IP:19892
 
 ```bash
 docker pull linxi5013/roco-push-console:latest
+docker pull linxi5013/roco-push-console:0.1.1
 docker pull linxi5013/roco-push-console:0.1.0
 ```
 
@@ -210,6 +211,23 @@ docker build -t roco-push-console:latest .
 ### 配置文件损坏怎么办？
 
 程序读取 `config.json` 失败时，会把损坏文件备份为 `config.json.invalid-时间戳.bak`，并在控制台状态区显示提示。
+
+### 点击“保存配置”提示保存失败怎么办？
+
+新版镜像启动时会自动修正 `/data` 目录权限。旧容器如果已经创建过 `./data`，尤其是在 Ubuntu WSL 里运行 Docker、并把项目目录 bind mount 到容器时，可能出现容器内应用用户无法写入 `/data/config.json.tmp` 的情况。
+
+如果控制台保存时报 `Permission denied`，先在 WSL 的 Ubuntu 终端执行：
+
+```bash
+docker exec -u root roco-push-console chown -R app:app /data
+```
+
+然后刷新控制台再保存。长期建议更新到新版镜像并重建容器：
+
+```bash
+docker compose pull
+docker compose up -d --force-recreate
+```
 
 ## 许可
 
