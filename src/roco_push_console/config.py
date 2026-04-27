@@ -15,8 +15,61 @@ from .push import ProviderConfig
 DEFAULT_GAME_API_URL = (
     "https://wegame.shallow.ink/api/v1/games/rocom/merchant/info?refresh=true"
 )
-DEFAULT_SCHEDULE_TIMES = "08:01,12:01,16:01,20:01"
+DEFAULT_SCHEDULE_TIMES = "08:05,12:05,16:05,20:05"
 DEFAULT_CONFIG_PATH = "/data/config.json"
+
+ENV_PROVIDER_FIELDS: dict[str, dict[str, str]] = {
+    "serverchan": {"sendkey": "SERVERCHAN_SENDKEY"},
+    "pushplus": {
+        "token": "PUSHPLUS_TOKEN",
+        "topic": "PUSHPLUS_TOPIC",
+        "channel": "PUSHPLUS_CHANNEL",
+    },
+    "wecomchan": {
+        "corpid": "WECOM_CORPID",
+        "secret": "WECOM_SECRET",
+        "agentid": "WECOM_AGENTID",
+        "touser": "WECOM_TOUSER",
+    },
+    "wecom_bot": {"webhook": "WECOM_BOT_WEBHOOK", "key": "WECOM_BOT_KEY"},
+    "wxpusher": {
+        "app_token": "WXPUSHER_APP_TOKEN",
+        "uids": "WXPUSHER_UIDS",
+        "topic_ids": "WXPUSHER_TOPIC_IDS",
+    },
+    "bark": {
+        "server_url": "BARK_SERVER_URL",
+        "device_key": "BARK_DEVICE_KEY",
+        "group": "BARK_GROUP",
+    },
+    "dingtalk_bot": {"webhook": "DINGTALK_WEBHOOK", "secret": "DINGTALK_SECRET"},
+    "feishu_bot": {"webhook": "FEISHU_WEBHOOK", "secret": "FEISHU_SECRET"},
+    "ntfy": {
+        "base_url": "NTFY_BASE_URL",
+        "topic": "NTFY_TOPIC",
+        "token": "NTFY_TOKEN",
+        "priority": "NTFY_PRIORITY",
+        "tags": "NTFY_TAGS",
+    },
+    "gotify": {
+        "base_url": "GOTIFY_BASE_URL",
+        "app_token": "GOTIFY_APP_TOKEN",
+        "priority": "GOTIFY_PRIORITY",
+    },
+}
+
+ENV_PROVIDER_IDS = {
+    "serverchan": "serverchan-default",
+    "pushplus": "pushplus-env",
+    "wecomchan": "wecomchan-env",
+    "wecom_bot": "wecom-bot-env",
+    "wxpusher": "wxpusher-env",
+    "bark": "bark-env",
+    "dingtalk_bot": "dingtalk-env",
+    "feishu_bot": "feishu-env",
+    "ntfy": "ntfy-env",
+    "gotify": "gotify-env",
+}
 
 
 @dataclass(frozen=True)
@@ -70,18 +123,7 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        serverchan_sendkey = os.environ.get("SERVERCHAN_SENDKEY", "").strip()
-        providers = []
-        if serverchan_sendkey:
-            providers.append(
-                ProviderConfig(
-                    id="serverchan-default",
-                    type="serverchan",
-                    name="Server 酱",
-                    enabled=True,
-                    config={"sendkey": serverchan_sendkey},
-                )
-            )
+        providers = _env_providers()
         default_provider_id = providers[0].id if providers else ""
         return cls(
             rocom_api_key=os.environ.get("ROCOM_API_KEY", "").strip(),
@@ -92,7 +134,7 @@ class Settings:
             run_on_start=_env_bool("RUN_ON_START", False),
             delivery_mode=os.environ.get("DELIVERY_MODE", "all").strip() or "all",
             selected_provider=os.environ.get("SELECTED_PROVIDER", "").strip() or default_provider_id,
-            failover_order=[default_provider_id] if default_provider_id else [],
+            failover_order=_provider_order(providers),
             providers=providers,
         )
 
@@ -239,6 +281,69 @@ class ConfigStore:
 
 def _provider_order(providers: list[ProviderConfig]) -> list[str]:
     return [provider.id for provider in providers if provider.enabled]
+
+
+def _env_text(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+def _env_providers() -> list[ProviderConfig]:
+    providers: list[ProviderConfig] = []
+    for provider_type in ENV_PROVIDER_FIELDS:
+        provider = _env_provider(provider_type)
+        if provider:
+            providers.append(provider)
+    return providers
+
+
+def _env_provider(provider_type: str) -> ProviderConfig | None:
+    spec = PROVIDER_TYPES.get(provider_type, {})
+    config, has_explicit_value = _env_provider_config(provider_type, spec)
+    required = _provider_required_fields(spec)
+    if not _env_provider_is_complete(provider_type, config, has_explicit_value, required):
+        return None
+
+    return ProviderConfig(
+        id=ENV_PROVIDER_IDS[provider_type],
+        type=provider_type,
+        name=str(spec.get("label") or provider_type),
+        enabled=True,
+        config=config,
+    )
+
+
+def _env_provider_config(provider_type: str, spec: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    field_envs = ENV_PROVIDER_FIELDS[provider_type]
+    config: dict[str, Any] = {}
+    has_explicit_value = False
+
+    for field in spec.get("fields", []):
+        field_name = str(field["name"])
+        value = _env_text(field_envs.get(field_name, ""))
+        if value:
+            config[field_name] = value
+            has_explicit_value = True
+        elif "default" in field:
+            config[field_name] = field["default"]
+
+    return config, has_explicit_value
+
+
+def _provider_required_fields(spec: dict[str, Any]) -> list[str]:
+    return [
+        str(field["name"])
+        for field in spec.get("fields", [])
+        if field.get("required")
+    ]
+
+
+def _env_provider_is_complete(
+    provider_type: str, config: dict[str, Any], has_explicit_value: bool, required: list[str]
+) -> bool:
+    if provider_type == "wecom_bot":
+        return bool(config.get("webhook") or config.get("key"))
+
+    return has_explicit_value and all(str(config.get(name, "")).strip() for name in required)
 
 
 def _legacy_serverchan_provider(sendkey: str) -> ProviderConfig | None:

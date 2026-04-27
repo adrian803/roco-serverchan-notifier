@@ -16,6 +16,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TZ=Asia/Shanghai \
     CONFIG_PATH=/data/config.json \
+    APP_MODE=web \
     WEB_HOST=0.0.0.0 \
     WEB_PORT=19892 \
     PATH=/opt/venv/bin:$PATH \
@@ -37,7 +38,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 19892
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD python -c "import os, socket; s = socket.create_connection(('127.0.0.1', int(os.environ.get('WEB_PORT', '19892'))), 3); s.close()"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD python -m roco_push_console.healthcheck
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["python", "-m", "roco_push_console.web"]
+CMD ["python", "-m", "roco_push_console.launcher"]

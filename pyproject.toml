@@ -15,6 +15,7 @@ dependencies = [
 roco-push-once = "roco_push_console.app:cli"
 roco-push-scheduler = "roco_push_console.scheduler:cli"
 roco-push-console = "roco_push_console.web:cli"
+roco-push-service = "roco_push_console.launcher:main"
 
 [tool.uv]
 package = true

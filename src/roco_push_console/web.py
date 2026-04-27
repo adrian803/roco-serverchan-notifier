@@ -33,6 +33,7 @@ STATIC_DIR = PACKAGE_DIR / "static"
 TEMPLATE_DIR = PACKAGE_DIR / "templates"
 store = ConfigStore()
 scheduler = SchedulerService(store)
+static_files = StaticFiles(directory=str(STATIC_DIR))
 
 
 @asynccontextmanager
@@ -45,7 +46,11 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Roco Push Console", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.get("/static/{path:path}", include_in_schema=False)
+async def static_asset(path: str, request: Request):
+    return await static_files.get_response(path, request.scope)
 
 
 def _format_dt(value: datetime | None) -> str:
