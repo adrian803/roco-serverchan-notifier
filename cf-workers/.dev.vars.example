@@ -1,5 +1,5 @@
 # Copy this file to .dev.vars and fill in your secrets
-# These mirror the secrets you'd set via `wrangler secret put`
+# These mirror the secrets you'd set in the Cloudflare Dashboard or via Wrangler
 
 ROCOM_API_KEY=
 SERVERCHAN_SENDKEY=

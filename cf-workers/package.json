@@ -4,41 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "build:worker": "wrangler deploy --dry-run --outdir dist && node scripts/write-worker-bundle.mjs",
+    "check:worker": "npm run build:worker && git diff --exit-code _worker.js",
     "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "dry-run": "wrangler deploy --dry-run --outdir dist",
     "test": "tsx --test test/*.test.ts",
     "tail": "wrangler tail"
-  },
-  "cloudflare": {
-    "bindings": {
-      "ROCOM_API_KEY": {
-        "description": "数据源接口 Key（必需）。本项目不提供、不分发 API Key，请按数据源项目或相关社区规则获取。"
-      },
-      "SERVERCHAN_SENDKEY": {
-        "description": "Server 酱 SendKey。至少配置一个推送通道；如果不用 Server 酱，可改填其他通道 secret。"
-      },
-      "PUSHPLUS_TOKEN": {
-        "description": "PushPlus token。可选推送通道。"
-      },
-      "BARK_DEVICE_KEY": {
-        "description": "Bark device key。可选推送通道。"
-      },
-      "DINGTALK_WEBHOOK": {
-        "description": "钉钉群机器人 webhook。可选推送通道。"
-      },
-      "FEISHU_WEBHOOK": {
-        "description": "飞书群机器人 webhook。可选推送通道。"
-      },
-      "NTFY_TOPIC": {
-        "description": "ntfy topic。可选推送通道。"
-      },
-      "GOTIFY_APP_TOKEN": {
-        "description": "Gotify app token。使用 Gotify 时还需要在 wrangler.toml 或 Dashboard 中配置 GOTIFY_BASE_URL。"
-      },
-      "TRIGGER_TOKEN": {
-        "description": "可选。配置后，/trigger 手动触发端点需要通过 ?token=、X-Trigger-Token 或 Authorization: Bearer 提供该 token。"
-      }
-    }
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260430.1",

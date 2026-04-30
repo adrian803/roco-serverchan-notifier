@@ -14,7 +14,7 @@ HTTP_TIMEOUT = "30"
 # Uncomment and set as needed:
 # SELECTED_PROVIDER = "serverchan-default"
 # FAILOVER_ORDER = "serverchan-default,pushplus-env"
-# TRIGGER_TOKEN is a secret. Set it with:
+# TRIGGER_TOKEN is a secret. Set it in the Dashboard, or for Wrangler deployments:
 # npx wrangler secret put TRIGGER_TOKEN
 # WECOM_TOUSER = "@all"
 # BARK_SERVER_URL = "https://api.day.app"

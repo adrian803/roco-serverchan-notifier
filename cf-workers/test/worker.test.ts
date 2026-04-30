@@ -120,6 +120,13 @@ test("processMerchantData filters by real epoch time in UTC environments", () =>
   });
 });
 
+test("_worker.js exports a pasteable worker module", async () => {
+  const pasteWorker = (await import("../_worker.js")).default;
+
+  assert.equal(typeof pasteWorker.fetch, "function");
+  assert.equal(typeof pasteWorker.scheduled, "function");
+});
+
 test("delivery preserves non-json HTTP error bodies without reading the body twice", async () => {
   const providers: ProviderConfig[] = [
     {

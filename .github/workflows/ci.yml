@@ -61,6 +61,6 @@ jobs:
         working-directory: cf-workers
         run: npx tsc --noEmit
 
-      - name: Validate CF Worker bundle
+      - name: Validate pasteable Worker bundle
         working-directory: cf-workers
-        run: npx wrangler deploy --dry-run --outdir dist
+        run: npm run check:worker
