@@ -31,6 +31,8 @@ SESSION_COOKIE_NAME = "roco_console_session"
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
 TEMPLATE_DIR = PACKAGE_DIR / "templates"
+_GENERATED_CONSOLE_PASSWORD: str | None = None
+_LOGGED_CONSOLE_PASSWORD = False
 store = ConfigStore()
 scheduler = SchedulerService(store)
 static_files = StaticFiles(directory=str(STATIC_DIR))
@@ -38,6 +40,7 @@ static_files = StaticFiles(directory=str(STATIC_DIR))
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _log_console_password_once()
     scheduler.start()
     try:
         yield
@@ -58,7 +61,49 @@ def _format_dt(value: datetime | None) -> str:
 
 
 def _auth_password() -> str:
-    return os.environ.get("CONSOLE_PASSWORD", "").strip()
+    configured = os.environ.get("CONSOLE_PASSWORD", "").strip()
+    if configured or _allow_empty_password():
+        return configured
+    return _generated_console_password()
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "y"}
+
+
+def _allow_empty_password() -> bool:
+    return _env_bool("CONSOLE_ALLOW_EMPTY_PASSWORD", False)
+
+
+def _generated_console_password() -> str:
+    global _GENERATED_CONSOLE_PASSWORD
+    if _GENERATED_CONSOLE_PASSWORD is None:
+        _GENERATED_CONSOLE_PASSWORD = secrets.token_urlsafe(24)
+    return _GENERATED_CONSOLE_PASSWORD
+
+
+def _uses_generated_console_password() -> bool:
+    return not os.environ.get("CONSOLE_PASSWORD", "").strip() and not _allow_empty_password()
+
+
+def _log_console_password_once() -> None:
+    global _LOGGED_CONSOLE_PASSWORD
+    if _LOGGED_CONSOLE_PASSWORD or not _uses_generated_console_password():
+        return
+    password = _auth_password()
+    print("控制台未设置 CONSOLE_PASSWORD，已生成本次启动默认密码：", flush=True)
+    print(f"控制台默认密码: {password}", flush=True)
+    print("请尽快在 .env 中设置 CONSOLE_PASSWORD 保存固定强密码。", flush=True)
+    _LOGGED_CONSOLE_PASSWORD = True
+
+
+def _reset_generated_password_for_tests() -> None:
+    global _GENERATED_CONSOLE_PASSWORD, _LOGGED_CONSOLE_PASSWORD
+    _GENERATED_CONSOLE_PASSWORD = None
+    _LOGGED_CONSOLE_PASSWORD = False
 
 
 def _auth_username() -> str:
@@ -110,7 +155,7 @@ def _valid_session_cookie(value: str | None) -> bool:
 def _is_authenticated(request: Request) -> bool:
     password = _auth_password()
     if not password:
-        return True
+        return _allow_empty_password()
     return _valid_session_cookie(request.cookies.get(SESSION_COOKIE_NAME))
 
 
@@ -139,7 +184,8 @@ async def login_page(request: Request):
 @app.post("/api/login")
 async def api_login(request: Request) -> JSONResponse:
     if not _auth_password():
-        return JSONResponse({"ok": True, "message": "未启用控制台认证"})
+        if _allow_empty_password():
+            return JSONResponse({"ok": True, "message": "未启用控制台认证"})
 
     try:
         payload = await request.json()

@@ -37,6 +37,11 @@ class GitHubActionsWorkflowTests(unittest.TestCase):
         content = self._read("docker-publish.yml")
 
         self.assertIn("actions/checkout@v5", content)
+        self.assertIn("docker/setup-qemu-action@v4", content)
+        self.assertIn("docker/setup-buildx-action@v4", content)
+        self.assertIn("docker/login-action@v4", content)
+        self.assertIn("docker/metadata-action@v6", content)
+        self.assertIn("docker/build-push-action@v7", content)
 
 
 if __name__ == "__main__":

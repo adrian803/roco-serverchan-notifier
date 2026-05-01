@@ -50,6 +50,11 @@ class CloudflareDeployScriptDocsTests(unittest.TestCase):
         self.assertIn("pause >nul", content)
         self.assertIn(b"\r\n", script.read_bytes())
 
+    def test_windows_cmd_launcher_line_endings_are_preserved_on_linux_ci(self):
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+
+        self.assertIn("*.cmd text eol=crlf", attributes)
+
     def test_linux_deploy_script_contains_expected_safety_and_deploy_steps(self):
         script = ROOT / "scripts" / "deploy-cf-worker.sh"
         content = script.read_text(encoding="utf-8")

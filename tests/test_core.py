@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from roco_push_console import app as app_module
+from roco_push_console import push as push_module
 from roco_push_console import web as web_module
 from roco_push_console.app import build_merchant_markdown
 from roco_push_console.config import ConfigStore, Settings
@@ -615,6 +617,31 @@ class CoreTests(unittest.TestCase):
 
         self.assertEqual(asyncio.run(exercise())[0]["provider_id"], "p1")
 
+    def test_run_now_rejects_duplicate_manual_run_before_task_acquires_lock(self):
+        async def exercise():
+            with tempfile.TemporaryDirectory() as temp_dir:
+                store = ConfigStore(Path(temp_dir) / "config.json")
+                store.save(self.make_settings())
+                scheduler = SchedulerService(store)
+                release = asyncio.Event()
+                started = 0
+
+                async def slow_run(settings):
+                    nonlocal started
+                    started += 1
+                    await release.wait()
+                    return app_module.RunResult(0)
+
+                with patch("roco_push_console.scheduler.run", new=slow_run):
+                    first = await scheduler.run_now()
+                    second = await scheduler.run_now()
+                    await asyncio.sleep(0)
+                    release.set()
+                    await asyncio.sleep(0.05)
+                    return first, second, started
+
+        self.assertEqual(asyncio.run(exercise()), (True, False, 1))
+
     def test_rendered_pages_reference_static_assets(self):
         login_html = web_module.render_login_html()
         index_html = web_module.render_index_html()
@@ -630,6 +657,46 @@ class CoreTests(unittest.TestCase):
         response = asyncio.run(web_module.static_asset("login.css", request))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_console_generates_default_password_when_env_password_is_empty(self):
+        request = SimpleNamespace(cookies={})
+
+        with patch.dict("os.environ", {}, clear=True):
+            web_module._reset_generated_password_for_tests()
+            password = web_module._auth_password()
+
+            self.assertGreaterEqual(len(password), 32)
+            self.assertFalse(web_module._is_authenticated(request))
+
+    def test_console_can_explicitly_allow_empty_password(self):
+        request = SimpleNamespace(cookies={})
+
+        with patch.dict("os.environ", {"CONSOLE_ALLOW_EMPTY_PASSWORD": "true"}, clear=True):
+            web_module._reset_generated_password_for_tests()
+            self.assertTrue(web_module._is_authenticated(request))
+
+    def test_login_page_shows_form_when_using_generated_password(self):
+        request = SimpleNamespace(cookies={})
+
+        with patch.dict("os.environ", {}, clear=True):
+            web_module._reset_generated_password_for_tests()
+            response = asyncio.run(web_module.login_page(request))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("/static/login.js", response.body.decode("utf-8"))
+
+    def test_generated_console_password_is_logged_once(self):
+        with patch.dict("os.environ", {}, clear=True), patch("builtins.print") as print_mock:
+            web_module._reset_generated_password_for_tests()
+            password = web_module._auth_password()
+
+            web_module._log_console_password_once()
+            web_module._log_console_password_once()
+
+        output = "\n".join(str(call.args[0]) for call in print_mock.call_args_list)
+        self.assertIn("控制台默认密码", output)
+        self.assertIn(password, output)
+        self.assertEqual(output.count(password), 1)
 
     def test_push_uses_configured_timeout(self):
         settings = self.make_settings(http_timeout=42, notify_empty=True)
@@ -748,6 +815,26 @@ class CoreTests(unittest.TestCase):
 
         self.assertTrue(report.success)
         self.assertEqual(len(report.results), 2)
+
+    def test_delivery_all_sends_enabled_providers_concurrently(self):
+        providers = [
+            ProviderConfig("a", "serverchan", "A", True, {"sendkey": "a"}),
+            ProviderConfig("b", "serverchan", "B", True, {"sendkey": "b"}),
+        ]
+        barrier = threading.Barrier(len(providers))
+
+        def fake_send_provider(provider, message, *, session=None, timeout=10):
+            try:
+                barrier.wait(timeout=1)
+            except threading.BrokenBarrierError as exc:
+                raise AssertionError("all mode did not send providers concurrently") from exc
+            return PushResult(provider.id, provider.name, provider.type, True, "ok")
+
+        with patch.object(push_module, "send_provider", side_effect=fake_send_provider):
+            report = send_delivery(providers, NotificationMessage("标题", "摘要", "正文"), mode="all")
+
+        self.assertTrue(report.success)
+        self.assertEqual([result.provider_id for result in report.results], ["a", "b"])
 
     def test_delivery_single_uses_selected_provider_only(self):
         providers = [

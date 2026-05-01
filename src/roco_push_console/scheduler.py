@@ -89,6 +89,7 @@ class SchedulerService:
         self._wake_event = asyncio.Event()
         self._run_lock = asyncio.Lock()
         self._task: asyncio.Task[None] | None = None
+        self._manual_run_task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -100,17 +101,31 @@ class SchedulerService:
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
+        manual_task = self._manual_run_task
+        if manual_task is not None and not manual_task.done():
+            manual_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await manual_task
         self._task = None
+        self._manual_run_task = None
         self.state.running = False
 
     def wake(self) -> None:
         self._wake_event.set()
 
     async def run_now(self) -> bool:
-        if self._run_lock.locked():
+        if self._run_lock.locked() or (
+            self._manual_run_task is not None and not self._manual_run_task.done()
+        ):
             return False
-        asyncio.create_task(self._run_once("手动执行"))
+        task = asyncio.create_task(self._run_once("手动执行"))
+        self._manual_run_task = task
+        task.add_done_callback(self._clear_manual_run_task)
         return True
+
+    def _clear_manual_run_task(self, task: asyncio.Task[None]) -> None:
+        if self._manual_run_task is task:
+            self._manual_run_task = None
 
     async def _run_once(self, reason: str) -> None:
         async with self._run_lock:

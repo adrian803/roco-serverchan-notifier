@@ -6,6 +6,7 @@ import hmac
 import re
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -536,7 +537,6 @@ def send_delivery(
     **legacy_options: Any,
 ) -> DeliveryReport:
     delivery_options = _delivery_options(options, legacy_options)
-    client = delivery_options.session or requests.Session()
     enabled = [provider for provider in providers if provider.enabled]
     mode = delivery_options.mode
     if mode not in {"all", "single", "failover"}:
@@ -555,6 +555,28 @@ def send_delivery(
     else:
         targets = enabled
 
+    def send_target(provider: ProviderConfig) -> PushResult:
+        if delivery_options.session is not None:
+            return send_provider(
+                provider,
+                message,
+                session=delivery_options.session,
+                timeout=delivery_options.timeout,
+            )
+        with requests.Session() as provider_session:
+            return send_provider(
+                provider,
+                message,
+                session=provider_session,
+                timeout=delivery_options.timeout,
+            )
+
+    if mode == "all":
+        with ThreadPoolExecutor(max_workers=len(targets) or 1) as executor:
+            results = list(executor.map(send_target, targets))
+        return DeliveryReport(any(result.success for result in results), mode, results)
+
+    client = delivery_options.session or requests.Session()
     results: list[PushResult] = []
     for provider in targets:
         result = send_provider(
