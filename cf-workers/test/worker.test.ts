@@ -210,7 +210,19 @@ test("buildMerchantMarkdown can include price and quantity details", () => {
 
   assert.match(
     markdown,
-    /黑晶琉璃\*100（16:00 - 20:00）单价1000 合计100,000（10万洛克贝）/
+    /1\. 黑晶琉璃/
+  );
+  assert.match(
+    markdown,
+    /数量：100/
+  );
+  assert.match(
+    markdown,
+    /单价：1,000/
+  );
+  assert.match(
+    markdown,
+    /合计：100,000（10万洛克贝）/
   );
 });
 
@@ -246,14 +258,27 @@ test("buildMerchantMarkdown marks missing prices and includes quantity one", () 
     true
   );
 
-  assert.match(markdown, /绝缘球（08:00 - 23:59）价格未收录/);
+  assert.match(markdown, /1\. 绝缘球/);
+  assert.match(markdown, /价格：未收录/);
   assert.match(
     markdown,
-    /炫彩精灵蛋\*1（16:00 - 20:00）单价1600000 合计1,600,000（160万洛克贝）/
+    /2\. 炫彩精灵蛋/
   );
   assert.match(
     markdown,
-    /魔力果\*20（16:00 - 20:00）单价6000 合计120,000（12万洛克贝）/
+    /单价：1,600,000/
+  );
+  assert.match(
+    markdown,
+    /3\. 魔力果/
+  );
+  assert.match(
+    markdown,
+    /单价：6,000/
+  );
+  assert.match(
+    markdown,
+    /合计：120,000（12万洛克贝）/
   );
 });
 

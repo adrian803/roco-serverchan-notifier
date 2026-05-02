@@ -233,42 +233,51 @@ function formatLuokeBay(value: number): string {
   return `${value}洛克贝`;
 }
 
-function productLine(product: MerchantProduct, includePriceInfo: boolean): string {
+function formatPrice(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+function statusLine(roundInfo: RoundInfo): string {
+  return `轮次：${roundInfo.current}/${roundInfo.total} · 剩余：${roundInfo.countdown}`;
+}
+
+function productLines(
+  index: number,
+  product: MerchantProduct,
+  includePriceInfo: boolean
+): string[] {
+  const lines = [`${index}. ${product.name}`, `时段：${product.timeLabel}`];
   if (
     includePriceInfo &&
     typeof product.price === "number" &&
     typeof product.buyLimitNum === "number"
   ) {
     const total = product.price * product.buyLimitNum;
-    return `${product.name}*${product.buyLimitNum}（${product.timeLabel}）单价${product.price} 合计${total.toLocaleString("en-US")}（${formatLuokeBay(total)}）`;
+    lines.push(`数量：${product.buyLimitNum}`);
+    lines.push(`单价：${formatPrice(product.price)}`);
+    lines.push(`合计：${formatPrice(total)}（${formatLuokeBay(total)}）`);
+    return lines;
   }
   if (includePriceInfo) {
-    return `${product.name}（${product.timeLabel}）价格未收录`;
+    lines.push("价格：未收录");
   }
-  return `${product.name}（${product.timeLabel}）`;
+  return lines;
 }
 
 export function buildMerchantMarkdown(
   processed: ProcessedMerchantData,
   includePriceInfo = false
 ): string {
-  const ri = processed.roundInfo;
-  const lines = [
-    "### 远行商人刷新详情",
-    "",
-    `- 当前轮次：${ri.current}/${ri.total}`,
-    `- 剩余时间：${ri.countdown}`,
-    `- 商品数量：${processed.productCount}`,
-    "",
-  ];
+  const lines = [statusLine(processed.roundInfo)];
 
   if (processed.products.length > 0) {
-    lines.push("#### 当前售卖");
-    for (const p of processed.products) {
-      lines.push(`- ${productLine(p, includePriceInfo)}`);
-    }
+    lines.push("");
+    processed.products.forEach((product, index) => {
+      if (index > 0) lines.push("");
+      lines.push(...productLines(index + 1, product, includePriceInfo));
+    });
   } else {
-    lines.push("当前暂无活跃商品。");
+    lines.push("", "当前暂无活跃商品。");
   }
 
   return lines.join("\n");
@@ -277,7 +286,7 @@ export function buildMerchantMarkdown(
 function summary(products: MerchantProduct[]): string {
   if (products.length === 0) return "当前暂无活跃商品";
   const names = products.map((p) => p.name);
-  return `当前售卖: ${names.join("、")}`;
+  return `${names.length}件商品：${names.join("、")}`;
 }
 
 export function buildMessage(processed: ProcessedMerchantData, includePriceInfo = false): {
@@ -290,7 +299,7 @@ export function buildMessage(processed: ProcessedMerchantData, includePriceInfo 
   return {
     title: "远行商人已刷新",
     body,
-    markdown: `${body}\n\n${markdown}`,
+    markdown,
   };
 }
 

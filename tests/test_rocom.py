@@ -113,7 +113,7 @@ class RocomTests(RocoTestCase):
         markdown = build_merchant_markdown(processed)
 
         self.assertIn("咕噜球", markdown)
-        self.assertIn("当前轮次：1/4", markdown)
+        self.assertIn("轮次：1/4 · 剩余：3小时", markdown)
 
     def test_merchant_markdown_can_include_price_and_quantity(self):
         processed = {
@@ -130,7 +130,10 @@ class RocomTests(RocoTestCase):
 
         markdown = build_merchant_markdown(processed, include_price_info=True)
 
-        self.assertIn("黑晶琉璃*100（16:00 - 20:00）单价1000 合计100,000（10万洛克贝）", markdown)
+        self.assertIn("1. 黑晶琉璃", markdown)
+        self.assertIn("数量：100", markdown)
+        self.assertIn("单价：1,000", markdown)
+        self.assertIn("合计：100,000（10万洛克贝）", markdown)
 
     def test_merchant_markdown_marks_missing_prices_and_includes_quantity_one(self):
         processed = {
@@ -154,9 +157,13 @@ class RocomTests(RocoTestCase):
 
         markdown = build_merchant_markdown(processed, include_price_info=True)
 
-        self.assertIn("绝缘球（08:00 - 23:59）价格未收录", markdown)
-        self.assertIn("炫彩精灵蛋*1（16:00 - 20:00）单价1600000 合计1,600,000（160万洛克贝）", markdown)
-        self.assertIn("魔力果*20（16:00 - 20:00）单价6000 合计120,000（12万洛克贝）", markdown)
+        self.assertIn("1. 绝缘球", markdown)
+        self.assertIn("价格：未收录", markdown)
+        self.assertIn("2. 炫彩精灵蛋", markdown)
+        self.assertIn("单价：1,600,000", markdown)
+        self.assertIn("3. 魔力果", markdown)
+        self.assertIn("单价：6,000", markdown)
+        self.assertIn("合计：120,000（12万洛克贝）", markdown)
 
     def test_merchant_markdown_omits_price_and_quantity_by_default(self):
         processed = {
@@ -173,8 +180,9 @@ class RocomTests(RocoTestCase):
 
         markdown = build_merchant_markdown(processed)
 
-        self.assertIn("黑晶琉璃（16:00 - 20:00）", markdown)
-        self.assertNotIn("单价1000", markdown)
+        self.assertIn("1. 黑晶琉璃", markdown)
+        self.assertIn("时段：16:00 - 20:00", markdown)
+        self.assertNotIn("单价：", markdown)
 
 
     def test_shared_price_markdown_fixture_matches_python(self):

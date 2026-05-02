@@ -1268,34 +1268,39 @@ function formatLuokeBay(value) {
   return `${value}\u6D1B\u514B\u8D1D`;
 }
 __name(formatLuokeBay, "formatLuokeBay");
-function productLine(product, includePriceInfo) {
+function formatPrice(value) {
+  return value.toLocaleString("en-US");
+}
+__name(formatPrice, "formatPrice");
+function statusLine(roundInfo) {
+  return `\u8F6E\u6B21\uFF1A${roundInfo.current}/${roundInfo.total} \xB7 \u5269\u4F59\uFF1A${roundInfo.countdown}`;
+}
+__name(statusLine, "statusLine");
+function productLines(index, product, includePriceInfo) {
+  const lines = [`${index}. ${product.name}`, `\u65F6\u6BB5\uFF1A${product.timeLabel}`];
   if (includePriceInfo && typeof product.price === "number" && typeof product.buyLimitNum === "number") {
     const total = product.price * product.buyLimitNum;
-    return `${product.name}*${product.buyLimitNum}\uFF08${product.timeLabel}\uFF09\u5355\u4EF7${product.price} \u5408\u8BA1${total.toLocaleString("en-US")}\uFF08${formatLuokeBay(total)}\uFF09`;
+    lines.push(`\u6570\u91CF\uFF1A${product.buyLimitNum}`);
+    lines.push(`\u5355\u4EF7\uFF1A${formatPrice(product.price)}`);
+    lines.push(`\u5408\u8BA1\uFF1A${formatPrice(total)}\uFF08${formatLuokeBay(total)}\uFF09`);
+    return lines;
   }
   if (includePriceInfo) {
-    return `${product.name}\uFF08${product.timeLabel}\uFF09\u4EF7\u683C\u672A\u6536\u5F55`;
+    lines.push("\u4EF7\u683C\uFF1A\u672A\u6536\u5F55");
   }
-  return `${product.name}\uFF08${product.timeLabel}\uFF09`;
+  return lines;
 }
-__name(productLine, "productLine");
+__name(productLines, "productLines");
 function buildMerchantMarkdown(processed, includePriceInfo = false) {
-  const ri = processed.roundInfo;
-  const lines = [
-    "### \u8FDC\u884C\u5546\u4EBA\u5237\u65B0\u8BE6\u60C5",
-    "",
-    `- \u5F53\u524D\u8F6E\u6B21\uFF1A${ri.current}/${ri.total}`,
-    `- \u5269\u4F59\u65F6\u95F4\uFF1A${ri.countdown}`,
-    `- \u5546\u54C1\u6570\u91CF\uFF1A${processed.productCount}`,
-    ""
-  ];
+  const lines = [statusLine(processed.roundInfo)];
   if (processed.products.length > 0) {
-    lines.push("#### \u5F53\u524D\u552E\u5356");
-    for (const p of processed.products) {
-      lines.push(`- ${productLine(p, includePriceInfo)}`);
-    }
+    lines.push("");
+    processed.products.forEach((product, index) => {
+      if (index > 0) lines.push("");
+      lines.push(...productLines(index + 1, product, includePriceInfo));
+    });
   } else {
-    lines.push("\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1\u3002");
+    lines.push("", "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1\u3002");
   }
   return lines.join("\n");
 }
@@ -1303,7 +1308,7 @@ __name(buildMerchantMarkdown, "buildMerchantMarkdown");
 function summary(products) {
   if (products.length === 0) return "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1";
   const names = products.map((p) => p.name);
-  return `\u5F53\u524D\u552E\u5356: ${names.join("\u3001")}`;
+  return `${names.length}\u4EF6\u5546\u54C1\uFF1A${names.join("\u3001")}`;
 }
 __name(summary, "summary");
 function buildMessage(processed, includePriceInfo = false) {
@@ -1312,9 +1317,7 @@ function buildMessage(processed, includePriceInfo = false) {
   return {
     title: "\u8FDC\u884C\u5546\u4EBA\u5DF2\u5237\u65B0",
     body,
-    markdown: `${body}
-
-${markdown}`
+    markdown
   };
 }
 __name(buildMessage, "buildMessage");

@@ -27,8 +27,13 @@ class MerchantMessageTests(unittest.TestCase):
 
         markdown = build_merchant_markdown(processed, include_price_info=True)
 
-        self.assertIn("绝缘球（08:00 - 23:59）价格未收录", markdown)
-        self.assertIn("炫彩精灵蛋*1（16:00 - 20:00）单价1600000 合计1,600,000（160万洛克贝）", markdown)
+        self.assertIn("轮次：3/4 · 剩余：3小时", markdown)
+        self.assertIn("1. 绝缘球", markdown)
+        self.assertIn("价格：未收录", markdown)
+        self.assertIn("2. 炫彩精灵蛋", markdown)
+        self.assertIn("数量：1", markdown)
+        self.assertIn("单价：1,600,000", markdown)
+        self.assertIn("合计：1,600,000（160万洛克贝）", markdown)
 
     def test_build_merchant_markdown_omits_price_by_default(self):
         processed = {
@@ -45,8 +50,9 @@ class MerchantMessageTests(unittest.TestCase):
 
         markdown = build_merchant_markdown(processed)
 
-        self.assertIn("黑晶琉璃（16:00 - 20:00）", markdown)
-        self.assertNotIn("单价1000", markdown)
+        self.assertIn("1. 黑晶琉璃", markdown)
+        self.assertIn("时段：16:00 - 20:00", markdown)
+        self.assertNotIn("单价：", markdown)
 
     def test_build_notification_message_uses_summary_and_markdown(self):
         processed = {
@@ -57,8 +63,8 @@ class MerchantMessageTests(unittest.TestCase):
         message = build_notification_message(processed, include_price_info=False)
 
         self.assertEqual(message.title, "远行商人已刷新")
-        self.assertEqual(message.body, "当前售卖: 魔力果")
-        self.assertTrue(message.markdown.startswith("当前售卖: 魔力果\n\n### 远行商人刷新详情"))
+        self.assertEqual(message.body, "1件商品：魔力果")
+        self.assertTrue(message.markdown.startswith("轮次：3/4 · 剩余：3小时\n\n1. 魔力果"))
 
     def test_app_reexports_build_merchant_markdown_for_compatibility(self):
         self.assertIs(app_module.build_merchant_markdown, build_merchant_markdown)
