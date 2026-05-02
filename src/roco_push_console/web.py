@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import web_auth, web_services
-from .config import ConfigStore
+from .config_store import ConfigStore
 from .provider_specs import PROVIDER_TYPES
 from .scheduler import SchedulerService
 

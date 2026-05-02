@@ -293,6 +293,102 @@ function missingRequired(config) {
 }
 __name(missingRequired, "missingRequired");
 
+// src/rocom-client.ts
+async function fetchWithTimeout(url, init, timeoutSec) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutSec * 1e3);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+__name(fetchWithTimeout, "fetchWithTimeout");
+async function fetchMerchantData(apiUrl, apiKey, timeoutSec) {
+  if (!apiKey) throw new Error("\u7F3A\u5C11 ROCOM_API_KEY");
+  const resp = await fetchWithTimeout(
+    apiUrl,
+    { method: "GET", headers: { "X-API-Key": apiKey } },
+    timeoutSec
+  );
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+  }
+  const payload = await resp.json();
+  if (payload.code !== 0) {
+    throw new Error(payload.message || "\u63A5\u53E3\u8FD4\u56DE\u5931\u8D25");
+  }
+  if (!payload.data || typeof payload.data !== "object") {
+    throw new Error("\u63A5\u53E3\u8FD4\u56DE data \u4E0D\u662F\u5BF9\u8C61");
+  }
+  return payload.data;
+}
+__name(fetchMerchantData, "fetchMerchantData");
+
+// src/rocom-message.ts
+function formatLuokeBay(value) {
+  if (value >= 1e4) {
+    const amount = value / 1e4;
+    const amountText = amount.toFixed(2).replace(/\.?0+$/, "");
+    return `${amountText}\u4E07\u6D1B\u514B\u8D1D`;
+  }
+  return `${value}\u6D1B\u514B\u8D1D`;
+}
+__name(formatLuokeBay, "formatLuokeBay");
+function formatPrice(value) {
+  return value.toLocaleString("en-US");
+}
+__name(formatPrice, "formatPrice");
+function statusLine(roundInfo) {
+  return `\u8F6E\u6B21\uFF1A${roundInfo.current}/${roundInfo.total} \xB7 \u5269\u4F59\uFF1A${roundInfo.countdown}`;
+}
+__name(statusLine, "statusLine");
+function productLines(index, product, includePriceInfo) {
+  const lines = [`${index}. ${product.name}`, `\u65F6\u6BB5\uFF1A${product.timeLabel}`];
+  if (includePriceInfo && typeof product.price === "number" && typeof product.buyLimitNum === "number") {
+    const total = product.price * product.buyLimitNum;
+    lines.push(`\u6570\u91CF\uFF1A${product.buyLimitNum}`);
+    lines.push(`\u5355\u4EF7\uFF1A${formatPrice(product.price)}`);
+    lines.push(`\u5408\u8BA1\uFF1A${formatPrice(total)}\uFF08${formatLuokeBay(total)}\uFF09`);
+    return lines;
+  }
+  if (includePriceInfo) {
+    lines.push("\u4EF7\u683C\uFF1A\u672A\u6536\u5F55");
+  }
+  return lines;
+}
+__name(productLines, "productLines");
+function buildMerchantMarkdown(processed, includePriceInfo = false) {
+  const lines = [statusLine(processed.roundInfo)];
+  if (processed.products.length > 0) {
+    lines.push("");
+    processed.products.forEach((product, index) => {
+      if (index > 0) lines.push("");
+      lines.push(...productLines(index + 1, product, includePriceInfo));
+    });
+  } else {
+    lines.push("", "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1\u3002");
+  }
+  return lines.join("\n");
+}
+__name(buildMerchantMarkdown, "buildMerchantMarkdown");
+function summary(products) {
+  if (products.length === 0) return "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1";
+  const names = products.map((p) => p.name);
+  return `${names.length}\u4EF6\u5546\u54C1\uFF1A${names.join("\u3001")}`;
+}
+__name(summary, "summary");
+function buildMessage(processed, includePriceInfo = false) {
+  const markdown = buildMerchantMarkdown(processed, includePriceInfo);
+  const body = summary(processed.products);
+  return {
+    title: "\u8FDC\u884C\u5546\u4EBA\u5DF2\u5237\u65B0",
+    body,
+    markdown
+  };
+}
+__name(buildMessage, "buildMessage");
+
 // src/random-goods-conf.json
 var random_goods_conf_default = {
   RocoDataRows: {
@@ -1098,7 +1194,7 @@ var random_goods_conf_default = {
   LocalizationStrings: {}
 };
 
-// src/rocom.ts
+// src/rocom-time.ts
 var BEIJING_OFFSET_MS = 8 * 60 * 60 * 1e3;
 function getBeijingDate(now) {
   const d = now || /* @__PURE__ */ new Date();
@@ -1144,26 +1240,8 @@ function getBeijingNowMs() {
   return Date.now();
 }
 __name(getBeijingNowMs, "getBeijingNowMs");
-async function fetchMerchantData(apiUrl, apiKey, timeoutSec) {
-  if (!apiKey) throw new Error("\u7F3A\u5C11 ROCOM_API_KEY");
-  const resp = await fetchWithTimeout(
-    apiUrl,
-    { method: "GET", headers: { "X-API-Key": apiKey } },
-    timeoutSec
-  );
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-  }
-  const payload = await resp.json();
-  if (payload.code !== 0) {
-    throw new Error(payload.message || "\u63A5\u53E3\u8FD4\u56DE\u5931\u8D25");
-  }
-  if (!payload.data || typeof payload.data !== "object") {
-    throw new Error("\u63A5\u53E3\u8FD4\u56DE data \u4E0D\u662F\u5BF9\u8C61");
-  }
-  return payload.data;
-}
-__name(fetchMerchantData, "fetchMerchantData");
+
+// src/rocom-processing.ts
 function isActiveItem(item, nowMs) {
   const startTime = item.start_time;
   const endTime = item.end_time;
@@ -1259,78 +1337,6 @@ function processMerchantData(data) {
   };
 }
 __name(processMerchantData, "processMerchantData");
-function formatLuokeBay(value) {
-  if (value >= 1e4) {
-    const amount = value / 1e4;
-    const amountText = amount.toFixed(2).replace(/\.?0+$/, "");
-    return `${amountText}\u4E07\u6D1B\u514B\u8D1D`;
-  }
-  return `${value}\u6D1B\u514B\u8D1D`;
-}
-__name(formatLuokeBay, "formatLuokeBay");
-function formatPrice(value) {
-  return value.toLocaleString("en-US");
-}
-__name(formatPrice, "formatPrice");
-function statusLine(roundInfo) {
-  return `\u8F6E\u6B21\uFF1A${roundInfo.current}/${roundInfo.total} \xB7 \u5269\u4F59\uFF1A${roundInfo.countdown}`;
-}
-__name(statusLine, "statusLine");
-function productLines(index, product, includePriceInfo) {
-  const lines = [`${index}. ${product.name}`, `\u65F6\u6BB5\uFF1A${product.timeLabel}`];
-  if (includePriceInfo && typeof product.price === "number" && typeof product.buyLimitNum === "number") {
-    const total = product.price * product.buyLimitNum;
-    lines.push(`\u6570\u91CF\uFF1A${product.buyLimitNum}`);
-    lines.push(`\u5355\u4EF7\uFF1A${formatPrice(product.price)}`);
-    lines.push(`\u5408\u8BA1\uFF1A${formatPrice(total)}\uFF08${formatLuokeBay(total)}\uFF09`);
-    return lines;
-  }
-  if (includePriceInfo) {
-    lines.push("\u4EF7\u683C\uFF1A\u672A\u6536\u5F55");
-  }
-  return lines;
-}
-__name(productLines, "productLines");
-function buildMerchantMarkdown(processed, includePriceInfo = false) {
-  const lines = [statusLine(processed.roundInfo)];
-  if (processed.products.length > 0) {
-    lines.push("");
-    processed.products.forEach((product, index) => {
-      if (index > 0) lines.push("");
-      lines.push(...productLines(index + 1, product, includePriceInfo));
-    });
-  } else {
-    lines.push("", "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1\u3002");
-  }
-  return lines.join("\n");
-}
-__name(buildMerchantMarkdown, "buildMerchantMarkdown");
-function summary(products) {
-  if (products.length === 0) return "\u5F53\u524D\u6682\u65E0\u6D3B\u8DC3\u5546\u54C1";
-  const names = products.map((p) => p.name);
-  return `${names.length}\u4EF6\u5546\u54C1\uFF1A${names.join("\u3001")}`;
-}
-__name(summary, "summary");
-function buildMessage(processed, includePriceInfo = false) {
-  const markdown = buildMerchantMarkdown(processed, includePriceInfo);
-  const body = summary(processed.products);
-  return {
-    title: "\u8FDC\u884C\u5546\u4EBA\u5DF2\u5237\u65B0",
-    body,
-    markdown
-  };
-}
-__name(buildMessage, "buildMessage");
-async function fetchWithTimeout(url, init, timeoutSec) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), timeoutSec * 1e3);
-  try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
-__name(fetchWithTimeout, "fetchWithTimeout");
 
 // src/push-redaction.ts
 var SENSITIVE_NAMES = "access_token|app_token|corpsecret|key|read_key|readkey|secret|sendkey|token|webhook";

@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "./rocom";
+import { fetchWithTimeout } from "./rocom-client";
 
 const wecomTokenCache = new Map<
   string,

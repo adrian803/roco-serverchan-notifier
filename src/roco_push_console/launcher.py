@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 from . import app, scheduler, web
-from .config import ConfigStore
+from .config_store import ConfigStore
 
 
 MODE_ALIASES = {

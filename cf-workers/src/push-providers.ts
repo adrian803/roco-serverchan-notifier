@@ -1,6 +1,6 @@
 import type { NotificationMessage, ProviderConfig, PushResult } from "./types";
 import { providerRequiredFields } from "./provider-specs";
-import { fetchWithTimeout } from "./rocom";
+import { fetchWithTimeout } from "./rocom-client";
 import { redactSensitiveText } from "./push-redaction";
 import {
   postJson,

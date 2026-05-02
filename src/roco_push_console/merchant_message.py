@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .push import NotificationMessage
+from .push_models import NotificationMessage
 
 
 def product_summary(products: list[dict[str, Any]]) -> str:

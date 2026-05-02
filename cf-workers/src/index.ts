@@ -1,10 +1,8 @@
 import type { Env, PipelineResult } from "./types";
 import { loadConfig, missingRequired } from "./config";
-import {
-  fetchMerchantData,
-  processMerchantData,
-  buildMessage,
-} from "./rocom";
+import { fetchMerchantData } from "./rocom-client";
+import { buildMessage } from "./rocom-message";
+import { processMerchantData } from "./rocom-processing";
 import { sendDelivery, deliverySummary } from "./push";
 
 function triggerTokenFromRequest(request: Request): string {

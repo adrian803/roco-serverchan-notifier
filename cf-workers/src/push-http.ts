@@ -1,5 +1,5 @@
 import type { ProviderConfig, PushResult } from "./types";
-import { fetchWithTimeout } from "./rocom";
+import { fetchWithTimeout } from "./rocom-client";
 import { redactSensitiveText } from "./push-redaction";
 
 export function jsonResult(

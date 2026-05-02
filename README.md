@@ -621,7 +621,11 @@ cf-workers/
     ├── index.ts               # 入口：scheduled（cron）+ fetch（HTTP）handler
     ├── types.ts               # 所有 TypeScript 接口定义
     ├── config.ts              # 环境变量 → Config 对象构建
-    ├── rocom.ts               # API 客户端 + 时间工具 + Markdown 构建
+    ├── rocom.ts               # RoCom 兼容导出入口
+    ├── rocom-time.ts          # 北京时间、轮次、时间格式化
+    ├── rocom-client.ts        # API 客户端与超时请求
+    ├── rocom-processing.ts    # 活跃商品过滤与价格补全
+    ├── rocom-message.ts       # Markdown 与摘要消息构建
     ├── push.ts                # 推送兼容导出入口
     ├── push-delivery.ts       # all/single/failover 投递引擎
     ├── push-providers.ts      # 10 个推送通道 payload 与分发
@@ -636,10 +640,10 @@ cf-workers/
 | Python 文件 | TypeScript 文件 | 内容 |
 |---|---|---|
 | `app.py` | `index.ts` | 流程编排 |
-| `config.py` | `config.ts` | 环境变量映射 |
-| `rocom.py` | `rocom.ts` | API 客户端 |
-| `merchant_message.py` | `rocom.ts` | 推送摘要和 Markdown 消息格式 |
-| `time_utils.py` | `rocom.ts` | 时间工具（合并） |
+| `settings.py` / `env_providers.py` / `config_store.py` / `config.py` | `config.ts` | 环境变量映射、设置对象、持久化 |
+| `rocom.py` | `rocom-client.ts` / `rocom-processing.ts` | API 客户端与商人数据处理 |
+| `merchant_message.py` | `rocom-message.ts` | 推送摘要和 Markdown 消息格式 |
+| `time_utils.py` | `rocom-time.ts` | 时间工具 |
 | `push.py` / `push_delivery.py` / `push_redaction.py` | `push.ts` / `push-delivery.ts` / `push-providers.ts` / `push-http.ts` / `push-provider-auth.ts` / `push-redaction.ts` | 通道实现、HTTP 公共逻辑、鉴权签名、投递引擎、脱敏 |
 | `provider_specs.py` | `provider-specs.ts` | 通道规格 |
 

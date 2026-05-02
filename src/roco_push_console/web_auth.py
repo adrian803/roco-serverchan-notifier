@@ -8,7 +8,7 @@ import secrets
 import time
 from typing import Any
 
-from .config import ConfigStore
+from .config_store import ConfigStore
 from .time_utils import beijing_now
 
 

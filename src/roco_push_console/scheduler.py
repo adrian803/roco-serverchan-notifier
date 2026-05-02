@@ -5,14 +5,20 @@ from dataclasses import dataclass, field
 from contextlib import suppress
 from collections.abc import Awaitable, Callable
 from datetime import datetime, time, timedelta
+from typing import Protocol
 
 from .app import RunResult, run
-from .config import ConfigStore, DEFAULT_SCHEDULE_TIMES, Settings
+from .config_store import ConfigStore
+from .settings import DEFAULT_SCHEDULE_TIMES, Settings
 from .time_utils import BEIJING_TZ, beijing_now, ensure_beijing_time
 
 
 NowProvider = Callable[[], datetime]
 SleepFunc = Callable[[float], Awaitable[None]]
+
+
+class SettingsStore(Protocol):
+    def load(self) -> Settings: ...
 
 
 def parse_schedule_times(value: str | None) -> list[time]:
@@ -77,7 +83,7 @@ class SchedulerState:
 class SchedulerService:
     def __init__(
         self,
-        store: ConfigStore,
+        store: SettingsStore,
         *,
         now_provider: NowProvider = beijing_now,
         sleep_func: SleepFunc = asyncio.sleep,
@@ -236,7 +242,7 @@ async def run_scheduler(
     display_times = ", ".join(item.strftime("%H:%M") for item in schedule_times)
     print(f"容器调度器已启动，北京时间定时: {display_times}", flush=True)
     service = SchedulerService(
-        StaticSettingsStore(settings),  # type: ignore[arg-type]
+        StaticSettingsStore(settings),
         now_provider=now_provider,
         sleep_func=sleep_func,
     )
