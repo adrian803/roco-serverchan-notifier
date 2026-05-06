@@ -47,6 +47,46 @@
       ]
     },
     {
+      "type": "telegram",
+      "label": "Telegram",
+      "description": "通过 Telegram Bot API 发送纯文本消息。",
+      "envId": "telegram-env",
+      "envVars": {
+        "bot_token": "TELEGRAM_BOT_TOKEN",
+        "chat_id": "TELEGRAM_CHAT_ID"
+      },
+      "fields": [
+        {
+          "name": "bot_token",
+          "label": "Bot Token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "chat_id",
+          "label": "Chat ID",
+          "required": true
+        }
+      ]
+    },
+    {
+      "type": "discord",
+      "label": "Discord",
+      "description": "通过 Discord Incoming Webhook 发送纯文本消息。",
+      "envId": "discord-env",
+      "envVars": {
+        "webhook": "DISCORD_WEBHOOK"
+      },
+      "fields": [
+        {
+          "name": "webhook",
+          "label": "Webhook",
+          "secret": true,
+          "required": true
+        }
+      ]
+    },
+    {
       "type": "wecomchan",
       "label": "Wecom 酱 / 企业微信应用",
       "description": "使用企业微信应用参数获取 access_token 后发送消息。",

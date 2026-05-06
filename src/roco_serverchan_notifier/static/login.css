@@ -104,18 +104,31 @@
 
     .theme-toggle {
       justify-self: end;
+      width: 42px;
+      min-width: 42px;
       min-height: 38px;
       border: 1px solid var(--soft-line);
       border-radius: 999px;
       background: var(--panel);
       color: var(--muted);
-      padding: 0 14px;
-      font-size: 13px;
-      font-weight: 650;
+      padding: 0;
       cursor: pointer;
       box-shadow: var(--soft-shadow);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
+    }
+
+    .theme-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      margin: 0 auto;
+      transition: transform .18s ease;
+    }
+
+    .theme-toggle:hover .theme-icon,
+    .theme-toggle:focus-visible .theme-icon {
+      transform: rotate(12deg) scale(1.04);
     }
 
     .login-card {
@@ -159,24 +172,45 @@
 
     .brand-top {
       display: grid;
-      gap: 20px;
+      gap: 24px;
       align-content: start;
     }
 
-    .app-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 24px;
+    .brand-mark {
       display: grid;
-      place-items: center;
-      background: linear-gradient(145deg, var(--accent), var(--accent-strong));
-      box-shadow: 0 22px 48px color-mix(in srgb, var(--accent), transparent 68%), inset 0 1px 0 rgba(255,255,255,.34);
+      grid-template-columns: 104px minmax(0, 1fr);
+      gap: 20px;
+      align-items: center;
     }
 
-    .app-icon svg {
-      width: 43px;
-      height: 43px;
-      fill: #fff;
+    .brand-copy {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+      align-content: center;
+    }
+
+    .app-icon {
+      width: 104px;
+      height: 104px;
+      border-radius: 28px;
+      display: grid;
+      place-items: center;
+      padding: 7px;
+      justify-self: start;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.92), rgba(255,255,255,.54)),
+        linear-gradient(145deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 22px 48px color-mix(in srgb, var(--accent), transparent 68%), inset 0 1px 0 rgba(255,255,255,.34);
+      overflow: hidden;
+    }
+
+    .app-icon img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      border-radius: 22px;
     }
 
     .eyebrow {
@@ -192,17 +226,18 @@
     }
 
     h1 {
-      max-width: 8em;
+      max-width: none;
       margin: 0;
-      font-size: clamp(32px, 5vw, 46px);
-      line-height: 1.06;
+      font-size: clamp(28px, 4.2vw, 42px);
+      line-height: 1.08;
       font-weight: 780;
       letter-spacing: -.04em;
+      text-wrap: balance;
     }
 
     .sub {
-      max-width: 28em;
-      margin-top: 12px;
+      max-width: 24em;
+      margin-top: 10px;
       color: var(--muted);
       font-size: 15px;
       line-height: 1.65;
@@ -359,6 +394,15 @@
         border-bottom: 1px solid var(--soft-line);
       }
 
+      .brand-mark {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+
+      .brand-copy {
+        gap: 10px;
+      }
+
       .brand::after { display: none; }
       .panel { padding: 26px; }
       h1 {
@@ -374,12 +418,11 @@
       .brand,
       .panel { padding: 22px; }
       .app-icon {
-        width: 60px;
-        height: 60px;
+        width: 84px;
+        height: 84px;
         border-radius: 18px;
       }
-      .app-icon svg {
-        width: 36px;
-        height: 36px;
+      .app-icon img {
+        border-radius: 14px;
       }
     }

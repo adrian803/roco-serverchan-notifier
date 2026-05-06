@@ -11,6 +11,16 @@
       "required_fields": ["token"]
     },
     {
+      "type": "telegram",
+      "secret_fields": ["bot_token"],
+      "required_fields": ["bot_token", "chat_id"]
+    },
+    {
+      "type": "discord",
+      "secret_fields": ["webhook"],
+      "required_fields": ["webhook"]
+    },
+    {
       "type": "ntfy",
       "secret_fields": ["topic", "token"],
       "required_fields": ["base_url", "topic"]

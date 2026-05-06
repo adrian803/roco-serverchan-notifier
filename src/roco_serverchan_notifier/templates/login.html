@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>登录远行商人推送控制台</title>
-  <link rel="icon" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" rx="16" fill="%230071e3"/%3E%3Cpath d="M18 36h28v10H18zM22 20h20v10H22z" fill="white"/%3E%3C/svg%3E'>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v=2">
+  <link rel="apple-touch-icon" href="/static/favicon.png?v=2">
   <script>
     (() => {
       const theme = localStorage.getItem("roco-console-theme");
@@ -20,13 +21,17 @@
     <section class="login-card" aria-label="控制台登录">
       <div class="brand">
         <div class="brand-top">
-          <div class="app-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64"><path d="M18 36h28v10H18zM22 20h20v10H22z"/></svg>
-          </div>
-          <div class="eyebrow">Docker 控制台 · 19892</div>
-          <div>
-            <h1>远行商人推送控制台</h1>
-            <div class="sub">管理定时任务、数据接口与多通道推送。</div>
+          <div class="brand-mark">
+            <div class="app-icon" aria-hidden="true">
+              <img src="/static/favicon.png?v=2" alt="">
+            </div>
+            <div class="brand-copy">
+              <div class="eyebrow">Docker 控制台 · 19892</div>
+              <div>
+                <h1>远行商人推送控制台</h1>
+                <div class="sub">管理定时任务、数据接口与多通道推送。</div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="brand-bottom">

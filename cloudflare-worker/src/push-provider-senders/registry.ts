@@ -1,4 +1,5 @@
 import type { Sender } from "./common";
+import { sendDiscord, sendTelegram } from "./chat";
 import {
   sendBark,
   sendGotify,
@@ -13,6 +14,8 @@ import { sendWecomBot, sendWecomChan } from "./wecom";
 export const PROVIDER_SENDERS: Record<string, Sender> = {
   serverchan: sendServerChan,
   pushplus: sendPushPlus,
+  telegram: sendTelegram,
+  discord: sendDiscord,
   wecomchan: sendWecomChan,
   wecom_bot: sendWecomBot,
   wxpusher: sendWxPusher,

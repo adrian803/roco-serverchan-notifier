@@ -260,6 +260,43 @@ class ConfigTests(RocoTestCase):
         self.assertEqual(settings.providers[0].type, "wecom_bot")
         self.assertEqual(settings.providers[0].config["key"], "bot-key")
 
+    def test_settings_from_env_builds_telegram_provider(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "ROCOM_API_KEY": "rocom-key",
+                "TELEGRAM_BOT_TOKEN": "bot-token",
+                "TELEGRAM_CHAT_ID": "-1001234567890",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+
+        self.assertEqual(settings.selected_provider, "telegram-env")
+        self.assertEqual(settings.failover_order, ["telegram-env"])
+        self.assertEqual(settings.providers[0].type, "telegram")
+        self.assertEqual(settings.providers[0].config["bot_token"], "bot-token")
+        self.assertEqual(settings.providers[0].config["chat_id"], "-1001234567890")
+
+    def test_settings_from_env_builds_discord_provider(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "ROCOM_API_KEY": "rocom-key",
+                "DISCORD_WEBHOOK": "https://discord.com/api/webhooks/123/secret",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+
+        self.assertEqual(settings.selected_provider, "discord-env")
+        self.assertEqual(settings.failover_order, ["discord-env"])
+        self.assertEqual(settings.providers[0].type, "discord")
+        self.assertEqual(
+            settings.providers[0].config["webhook"],
+            "https://discord.com/api/webhooks/123/secret",
+        )
+
     def test_settings_from_env_ignores_incomplete_headless_provider(self):
         with patch.dict(
             "os.environ",
@@ -298,6 +335,43 @@ class ConfigTests(RocoTestCase):
         self.assertEqual(public["providers"][0]["config"]["token"], "")
         self.assertTrue(public["providers"][0]["config"]["has_token"])
         self.assertEqual(public["providers"][0]["config"]["topic"], "team")
+
+    def test_public_config_masks_telegram_and_discord_secrets(self):
+        settings = Settings(
+            rocom_api_key="rocom-key",
+            game_api_url="https://example.com/api",
+            notify_empty=False,
+            http_timeout=30,
+            schedule_times="08:01",
+            run_on_start=False,
+            delivery_mode="all",
+            selected_provider="telegram-env",
+            failover_order=["telegram-env", "discord-env"],
+            providers=[
+                ProviderConfig(
+                    id="telegram-env",
+                    type="telegram",
+                    name="Telegram",
+                    enabled=True,
+                    config={"bot_token": "bot-secret", "chat_id": "-100123"},
+                ),
+                ProviderConfig(
+                    id="discord-env",
+                    type="discord",
+                    name="Discord",
+                    enabled=True,
+                    config={"webhook": "https://discord.com/api/webhooks/123/secret"},
+                ),
+            ],
+        )
+
+        public = settings.public_dict()
+
+        self.assertEqual(public["providers"][0]["config"]["bot_token"], "")
+        self.assertTrue(public["providers"][0]["config"]["has_bot_token"])
+        self.assertEqual(public["providers"][0]["config"]["chat_id"], "-100123")
+        self.assertEqual(public["providers"][1]["config"]["webhook"], "")
+        self.assertTrue(public["providers"][1]["config"]["has_webhook"])
 
     def test_settings_failover_order_follows_enabled_provider_order(self):
         settings = Settings.from_mapping(

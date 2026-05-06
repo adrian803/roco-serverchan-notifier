@@ -372,7 +372,22 @@
     }
 
     .theme-toggle {
-      min-width: 72px;
+      width: 44px;
+      min-width: 44px;
+      padding: 0;
+      flex: 0 0 auto;
+    }
+
+    .theme-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      transition: transform .18s ease;
+    }
+
+    .theme-toggle:hover .theme-icon,
+    .theme-toggle:focus-visible .theme-icon {
+      transform: rotate(12deg) scale(1.04);
     }
 
     .notice {

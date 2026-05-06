@@ -29,6 +29,7 @@ from roco_serverchan_notifier.push import (
 class PushDeliveryTests(RocoTestCase):
     def test_push_provider_senders_are_grouped_by_family_modules(self):
         registry = importlib.import_module("roco_serverchan_notifier.push_provider_senders.registry")
+        chat = importlib.import_module("roco_serverchan_notifier.push_provider_senders.chat")
         token = importlib.import_module("roco_serverchan_notifier.push_provider_senders.token")
         webhook = importlib.import_module("roco_serverchan_notifier.push_provider_senders.webhook")
         wecom = importlib.import_module("roco_serverchan_notifier.push_provider_senders.wecom")
@@ -36,6 +37,8 @@ class PushDeliveryTests(RocoTestCase):
         self.assertEqual(set(registry.PROVIDER_SENDERS), set(PROVIDER_SENDERS))
         self.assertEqual(set(registry.PROVIDER_SENDERS), set(PROVIDER_TYPES))
         self.assertIs(registry.PROVIDER_SENDERS["pushplus"], token.send_pushplus)
+        self.assertIs(registry.PROVIDER_SENDERS["telegram"], chat.send_telegram)
+        self.assertIs(registry.PROVIDER_SENDERS["discord"], chat.send_discord)
         self.assertIs(registry.PROVIDER_SENDERS["dingtalk_bot"], webhook.send_dingtalk_bot)
         self.assertIs(registry.PROVIDER_SENDERS["wecomchan"], wecom.send_wecomchan)
 
@@ -177,6 +180,99 @@ class PushDeliveryTests(RocoTestCase):
         self.assertEqual(session.calls[0]["json"]["token"], "tok")
         self.assertEqual(session.calls[0]["json"]["template"], "markdown")
         self.assertEqual(session.calls[0]["json"]["topic"], "ops")
+
+    def test_telegram_provider_posts_expected_payload(self):
+        provider = ProviderConfig(
+            "telegram-env",
+            "telegram",
+            "Telegram",
+            True,
+            {"bot_token": "bot-token", "chat_id": "-1001234567890"},
+        )
+        message = NotificationMessage("标题", "摘要", "正文")
+        session = FakeSession([FakeResponse({"ok": True, "result": {"message_id": 1}})])
+
+        result = send_provider(provider, message, session=session)
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            session.calls[0]["url"],
+            "https://api.telegram.org/botbot-token/sendMessage",
+        )
+        self.assertEqual(
+            session.calls[0]["json"],
+            {"chat_id": "-1001234567890", "text": "标题\n\n正文"},
+        )
+
+    def test_discord_provider_posts_expected_payload(self):
+        provider = ProviderConfig(
+            "discord-env",
+            "discord",
+            "Discord",
+            True,
+            {"webhook": "https://discord.com/api/webhooks/123/secret"},
+        )
+        message = NotificationMessage("标题", "摘要", "正文")
+        session = FakeSession([FakeResponse({"id": "1"}, status_code=200, text='{"id":"1"}')])
+
+        result = send_provider(provider, message, session=session)
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            session.calls[0]["url"],
+            "https://discord.com/api/webhooks/123/secret?wait=true",
+        )
+        self.assertEqual(
+            session.calls[0]["json"],
+            {"content": "标题\n\n正文", "allowed_mentions": {"parse": []}},
+        )
+
+    def test_telegram_error_message_redacts_bot_token(self):
+        class BrokenSession:
+            def post(self, url, **kwargs):
+                raise RuntimeError(f"failed POST {url}?token=bot-token")
+
+        provider = ProviderConfig(
+            "telegram-env",
+            "telegram",
+            "Telegram",
+            True,
+            {"bot_token": "bot-token", "chat_id": "-1001234567890"},
+        )
+
+        result = send_provider(
+            provider,
+            NotificationMessage("标题", "摘要", "正文"),
+            session=BrokenSession(),
+        )
+
+        self.assertFalse(result.success)
+        self.assertIn("[已脱敏]", result.message)
+        self.assertNotIn("bot-token", result.message)
+
+    def test_discord_error_message_redacts_webhook(self):
+        provider = ProviderConfig(
+            "discord-env",
+            "discord",
+            "Discord",
+            True,
+            {"webhook": "https://discord.com/api/webhooks/123/secret"},
+        )
+        session = FakeSession(
+            [
+                FakeResponse(
+                    {},
+                    status_code=500,
+                    text="webhook=https://discord.com/api/webhooks/123/secret",
+                )
+            ]
+        )
+
+        result = send_provider(provider, NotificationMessage("标题", "摘要", "正文"), session=session)
+
+        self.assertFalse(result.success)
+        self.assertNotIn("https://discord.com/api/webhooks/123/secret", result.message)
+        self.assertIn("[已脱敏]", result.message)
 
     def test_sender_required_validation_accepts_manifest_defaults(self):
         provider = ProviderConfig("p1", "bark", "Bark", True, {"device_key": "device-key"})
