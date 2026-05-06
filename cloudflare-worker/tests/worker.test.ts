@@ -374,6 +374,35 @@ test("loadConfig enables wecom bot with key only", () => {
   assert.equal(config.providers[0].config.key, "bot-key");
 });
 
+test("loadConfig builds telegram provider from worker env", () => {
+  const config = loadConfig(
+    env({
+      TELEGRAM_BOT_TOKEN: "bot-token",
+      TELEGRAM_CHAT_ID: "-1001234567890",
+    })
+  );
+
+  assert.equal(config.providers[0].type, "telegram");
+  assert.equal(config.providers[0].id, "telegram-env");
+  assert.equal(config.providers[0].config.bot_token, "bot-token");
+  assert.equal(config.providers[0].config.chat_id, "-1001234567890");
+});
+
+test("loadConfig builds discord provider from worker env", () => {
+  const config = loadConfig(
+    env({
+      DISCORD_WEBHOOK: "https://discord.com/api/webhooks/123/secret",
+    })
+  );
+
+  assert.equal(config.providers[0].type, "discord");
+  assert.equal(config.providers[0].id, "discord-env");
+  assert.equal(
+    config.providers[0].config.webhook,
+    "https://discord.com/api/webhooks/123/secret"
+  );
+});
+
 test("trigger endpoint rejects invalid token while health remains public", async () => {
   const bindings = env({ TRIGGER_TOKEN: "secret-token" });
 

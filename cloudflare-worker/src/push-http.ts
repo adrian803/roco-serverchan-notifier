@@ -6,13 +6,23 @@ export function jsonResult(
   payload: Record<string, unknown>,
   successCodes: Set<unknown>
 ): { success: boolean; message: string } {
-  const code = payload.code ?? payload.errcode;
-  let success = successCodes.has(code);
-  if (code === undefined && Object.keys(payload).length === 0) {
-    success = true;
+  let success: boolean;
+  if (Object.prototype.hasOwnProperty.call(payload, "ok")) {
+    success = Boolean(payload.ok);
+  } else {
+    const code = payload.code ?? payload.errcode;
+    success = successCodes.has(code);
+    if (code === undefined && Object.keys(payload).length === 0) {
+      success = true;
+    }
   }
   const message = String(
-    payload.message || payload.msg || payload.errmsg || JSON.stringify(payload)
+    payload.description ||
+      payload.message ||
+      payload.msg ||
+      payload.errmsg ||
+      payload.result ||
+      JSON.stringify(payload)
   );
   return { success, message };
 }
@@ -48,7 +58,9 @@ export function resultFromParsedResponse(
   }
   if (resp.status >= 400) {
     success = false;
-    message = textMessage || message;
+    if (Object.keys(payload).length === 0) {
+      message = textMessage || message;
+    }
   }
   return {
     providerId: provider.id,

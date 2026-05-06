@@ -7,6 +7,9 @@ TRIGGER_TOKEN=
 
 # Optional provider secrets. Uncomment the channels you use.
 # PUSHPLUS_TOKEN=
+# TELEGRAM_BOT_TOKEN=
+# TELEGRAM_CHAT_ID=
+# DISCORD_WEBHOOK=
 # WECOM_CORPID=
 # WECOM_SECRET=
 # WECOM_AGENTID=

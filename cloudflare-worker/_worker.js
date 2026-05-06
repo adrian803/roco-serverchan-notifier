@@ -55,6 +55,46 @@ var provider_manifest_default = {
       ]
     },
     {
+      type: "telegram",
+      label: "Telegram",
+      description: "\u901A\u8FC7 Telegram Bot API \u53D1\u9001\u7EAF\u6587\u672C\u6D88\u606F\u3002",
+      envId: "telegram-env",
+      envVars: {
+        bot_token: "TELEGRAM_BOT_TOKEN",
+        chat_id: "TELEGRAM_CHAT_ID"
+      },
+      fields: [
+        {
+          name: "bot_token",
+          label: "Bot Token",
+          secret: true,
+          required: true
+        },
+        {
+          name: "chat_id",
+          label: "Chat ID",
+          required: true
+        }
+      ]
+    },
+    {
+      type: "discord",
+      label: "Discord",
+      description: "\u901A\u8FC7 Discord Incoming Webhook \u53D1\u9001\u7EAF\u6587\u672C\u6D88\u606F\u3002",
+      envId: "discord-env",
+      envVars: {
+        webhook: "DISCORD_WEBHOOK"
+      },
+      fields: [
+        {
+          name: "webhook",
+          label: "Webhook",
+          secret: true,
+          required: true
+        }
+      ]
+    },
+    {
       type: "wecomchan",
       label: "Wecom \u9171 / \u4F01\u4E1A\u5FAE\u4FE1\u5E94\u7528",
       description: "\u4F7F\u7528\u4F01\u4E1A\u5FAE\u4FE1\u5E94\u7528\u53C2\u6570\u83B7\u53D6 access_token \u540E\u53D1\u9001\u6D88\u606F\u3002",
@@ -1624,13 +1664,18 @@ __name(redactSensitiveText, "redactSensitiveText");
 
 // src/push-http.ts
 function jsonResult(payload, successCodes) {
-  const code = payload.code ?? payload.errcode;
-  let success = successCodes.has(code);
-  if (code === void 0 && Object.keys(payload).length === 0) {
-    success = true;
+  let success;
+  if (Object.prototype.hasOwnProperty.call(payload, "ok")) {
+    success = Boolean(payload.ok);
+  } else {
+    const code = payload.code ?? payload.errcode;
+    success = successCodes.has(code);
+    if (code === void 0 && Object.keys(payload).length === 0) {
+      success = true;
+    }
   }
   const message = String(
-    payload.message || payload.msg || payload.errmsg || JSON.stringify(payload)
+    payload.description || payload.message || payload.msg || payload.errmsg || payload.result || JSON.stringify(payload)
   );
   return { success, message };
 }
@@ -1656,7 +1701,9 @@ function resultFromParsedResponse(provider, resp, payload, text, successCodes) {
   }
   if (resp.status >= 400) {
     success = false;
-    message = textMessage || message;
+    if (Object.keys(payload).length === 0) {
+      message = textMessage || message;
+    }
   }
   return {
     providerId: provider.id,
@@ -1707,6 +1754,55 @@ async function postJson(provider, url, payload, timeoutSec, options) {
   }
 }
 __name(postJson, "postJson");
+
+// src/push-provider-senders/chat.ts
+function chatText(message) {
+  return `${message.title}
+
+${message.markdown}`;
+}
+__name(chatText, "chatText");
+async function sendTelegram(provider, message, timeoutSec) {
+  return postJson(
+    provider,
+    `https://api.telegram.org/bot${provider.config.bot_token}/sendMessage`,
+    {
+      chat_id: provider.config.chat_id,
+      text: chatText(message)
+    },
+    timeoutSec
+  );
+}
+__name(sendTelegram, "sendTelegram");
+async function sendDiscord(provider, message, timeoutSec) {
+  const webhook = provider.config.webhook;
+  const separator = webhook.includes("?") ? "&" : "?";
+  try {
+    const resp = await fetchWithTimeout(
+      `${webhook}${separator}wait=true`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: chatText(message),
+          allowed_mentions: { parse: [] }
+        })
+      },
+      timeoutSec
+    );
+    const { payload, text } = await readResponsePayload(resp);
+    return resultFromParsedResponse(
+      provider,
+      resp,
+      payload,
+      text,
+      /* @__PURE__ */ new Set([null, void 0])
+    );
+  } catch (err) {
+    return providerErrorResult(provider, err);
+  }
+}
+__name(sendDiscord, "sendDiscord");
 
 // src/push-provider-senders/common.ts
 function splitCsv(value) {
@@ -2048,6 +2144,8 @@ __name(sendWecomBot, "sendWecomBot");
 var PROVIDER_SENDERS = {
   serverchan: sendServerChan,
   pushplus: sendPushPlus,
+  telegram: sendTelegram,
+  discord: sendDiscord,
   wecomchan: sendWecomChan,
   wecom_bot: sendWecomBot,
   wxpusher: sendWxPusher,

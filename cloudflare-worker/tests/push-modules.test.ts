@@ -8,6 +8,7 @@ import { postJson } from "../src/push-http";
 import { redactSensitiveText } from "../src/push-redaction";
 import { sendProvider } from "../src/push-providers";
 import { PROVIDER_SENDERS } from "../src/push-provider-senders/registry";
+import { sendDiscord, sendTelegram } from "../src/push-provider-senders/chat";
 import { sendPushPlus } from "../src/push-provider-senders/token";
 import { sendDingTalkBot } from "../src/push-provider-senders/webhook";
 import { sendWecomChan } from "../src/push-provider-senders/wecom";
@@ -37,6 +38,8 @@ test("split push modules expose delivery, redaction, and provider boundaries", a
 test("provider senders are grouped by family modules", () => {
   assert.deepEqual(Object.keys(PROVIDER_SENDERS), Object.keys(PROVIDER_TYPES));
   assert.equal(PROVIDER_SENDERS.pushplus, sendPushPlus);
+  assert.equal(PROVIDER_SENDERS.telegram, sendTelegram);
+  assert.equal(PROVIDER_SENDERS.discord, sendDiscord);
   assert.equal(PROVIDER_SENDERS.dingtalk_bot, sendDingTalkBot);
   assert.equal(PROVIDER_SENDERS.wecomchan, sendWecomChan);
 });
@@ -96,6 +99,117 @@ test("push-http preserves non-json error bodies and redacts provider secrets", a
     assert.equal(result.success, false);
     assert.equal(result.statusCode, 500);
     assert.equal(result.message, "bad token=[已脱敏] [已脱敏]");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("push-http supports Telegram ok and description fields", async () => {
+  const originalFetch = globalThis.fetch;
+  const provider: ProviderConfig = {
+    id: "telegram-env",
+    type: "telegram",
+    name: "Telegram",
+    enabled: true,
+    config: { bot_token: "bot-token", chat_id: "-100123" },
+  };
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  try {
+    const result = await sendProvider(
+      provider,
+      { title: "标题", body: "摘要", markdown: "正文" },
+      30
+    );
+
+    assert.equal(result.success, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("telegram sender posts expected payload", async () => {
+  const originalFetch = globalThis.fetch;
+  let receivedUrl = "";
+  let receivedBody = "";
+  globalThis.fetch = async (input, init) => {
+    receivedUrl = String(input);
+    receivedBody = String(init?.body || "");
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const provider: ProviderConfig = {
+      id: "telegram-env",
+      type: "telegram",
+      name: "Telegram",
+      enabled: true,
+      config: { bot_token: "bot-token", chat_id: "-1001234567890" },
+    };
+
+    const result = await sendProvider(
+      provider,
+      { title: "标题", body: "摘要", markdown: "正文" },
+      30
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(receivedUrl, "https://api.telegram.org/botbot-token/sendMessage");
+    assert.deepEqual(JSON.parse(receivedBody), {
+      chat_id: "-1001234567890",
+      text: "标题\n\n正文",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("discord sender posts expected payload and redacts webhook errors", async () => {
+  const originalFetch = globalThis.fetch;
+  let receivedUrl = "";
+  let receivedBody = "";
+  globalThis.fetch = async (input, init) => {
+    receivedUrl = String(input);
+    receivedBody = String(init?.body || "");
+    return new Response(
+      "webhook=https://discord.com/api/webhooks/123/secret",
+      {
+        status: 500,
+        statusText: "Internal Server Error",
+      }
+    );
+  };
+
+  try {
+    const provider: ProviderConfig = {
+      id: "discord-env",
+      type: "discord",
+      name: "Discord",
+      enabled: true,
+      config: { webhook: "https://discord.com/api/webhooks/123/secret" },
+    };
+
+    const result = await sendProvider(
+      provider,
+      { title: "标题", body: "摘要", markdown: "正文" },
+      30
+    );
+
+    assert.equal(receivedUrl, "https://discord.com/api/webhooks/123/secret?wait=true");
+    assert.deepEqual(JSON.parse(receivedBody), {
+      content: "标题\n\n正文",
+      allowed_mentions: { parse: [] },
+    });
+    assert.equal(result.success, false);
+    assert.match(result.message, /\[已脱敏\]/);
+    assert.doesNotMatch(result.message, /discord\.com\/api\/webhooks\/123\/secret/);
   } finally {
     globalThis.fetch = originalFetch;
   }

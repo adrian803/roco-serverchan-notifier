@@ -23,11 +23,23 @@ class JsonPostRequest:
 
 
 def json_result(payload: dict[str, Any], success_codes: set[Any]) -> tuple[bool, str]:
+    if "ok" in payload:
+        success = bool(payload.get("ok"))
+    else:
+        code = payload.get("code", payload.get("errcode"))
+        success = code in success_codes
+        if code is None and not payload:
+            success = True
+
     code = payload.get("code", payload.get("errcode"))
-    success = code in success_codes
-    if code is None and not payload:
-        success = True
-    message = str(payload.get("message") or payload.get("msg") or payload.get("errmsg") or payload)
+    message = str(
+        payload.get("description")
+        or payload.get("message")
+        or payload.get("msg")
+        or payload.get("errmsg")
+        or payload.get("result")
+        or payload
+    )
     return success, message
 
 
@@ -44,7 +56,8 @@ def result_from_response(
     success, message = json_result(payload, success_codes)
     if response.status_code >= 400:
         success = False
-        message = response.text[:200] or message
+        if not payload:
+            message = response.text[:200] or message
     return PushResult(
         provider.id,
         provider.name,

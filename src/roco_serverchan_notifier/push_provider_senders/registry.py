@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .chat import send_discord, send_telegram
 from .token import (
     send_bark,
     send_gotify,
@@ -15,6 +16,8 @@ from .wecom import send_wecom_bot, send_wecomchan
 PROVIDER_SENDERS = {
     "serverchan": send_serverchan,
     "pushplus": send_pushplus,
+    "telegram": send_telegram,
+    "discord": send_discord,
     "wecomchan": send_wecomchan,
     "wecom_bot": send_wecom_bot,
     "wxpusher": send_wxpusher,
