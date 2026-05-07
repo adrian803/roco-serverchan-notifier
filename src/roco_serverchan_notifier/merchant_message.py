@@ -3,18 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from .push_models import NotificationMessage
+from .utils import to_int as _to_int
 
 
 def product_summary(products: list[dict[str, Any]]) -> str:
     names = [str(product.get("name") or "未知") for product in products]
     return f"{len(names)}件商品：{'、'.join(names)}" if names else "当前暂无活跃商品"
-
-
-def _to_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _format_luoke_bay(value: int) -> str:

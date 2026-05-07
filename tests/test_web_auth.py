@@ -10,9 +10,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 try:
-    from .helpers import JsonRequest, RocoTestCase
+    from .helpers import JsonRequest, RocoTestCase, make_temp_store
 except ImportError:
-    from helpers import JsonRequest, RocoTestCase
+    from helpers import JsonRequest, RocoTestCase, make_temp_store
 
 from roco_serverchan_notifier import web as web_module
 from roco_serverchan_notifier import web_auth, web_services
@@ -22,6 +22,19 @@ from roco_serverchan_notifier.push import ProviderConfig
 
 
 class WebAuthTests(RocoTestCase):
+    def test_create_app_accepts_injected_store_and_scheduler(self):
+        with make_temp_store(self.make_settings()) as (store, _path):
+            scheduler = SimpleNamespace(
+                start=lambda: None,
+                stop=lambda: asyncio.sleep(0),
+                state=SimpleNamespace(to_dict=lambda: {"running": True}),
+            )
+
+            app = web_module.create_app(store=store, scheduler=scheduler)
+
+        self.assertIs(app.state.store, store)
+        self.assertIs(app.state.scheduler, scheduler)
+
     def test_web_auth_delegates_to_password_and_session_modules(self):
         password_module = importlib.import_module("roco_serverchan_notifier.console_password")
         session_module = importlib.import_module("roco_serverchan_notifier.console_session")
@@ -36,11 +49,18 @@ class WebAuthTests(RocoTestCase):
         login_html = web_module.render_login_html()
         index_html = web_module.render_index_html()
 
+        self.assertIn("/static/theme.css", login_html)
         self.assertIn("/static/login.css", login_html)
+        self.assertIn('type="module"', login_html)
+        self.assertIn("/static/theme.js", login_html)
         self.assertIn("/static/login.js", login_html)
+        self.assertIn("/static/theme.css", index_html)
         self.assertIn("/static/console.css", index_html)
         self.assertIn('type="module"', index_html)
+        self.assertIn("/static/theme.js", index_html)
         self.assertIn("/static/console.js", index_html)
+        self.assertIn('role="status"', index_html)
+        self.assertIn('aria-live="polite"', index_html)
 
     def test_static_asset_route_serves_static_files(self):
         request = SimpleNamespace(scope={"method": "GET", "headers": []})
@@ -55,6 +75,14 @@ class WebAuthTests(RocoTestCase):
         for path in ("console-api.js", "console-format.js", "console-providers.js"):
             response = asyncio.run(web_module.static_asset(path, request))
             self.assertEqual(response.status_code, 200, path)
+
+    def test_cli_falls_back_to_default_port_when_web_port_is_invalid(self):
+        with patch.dict("os.environ", {"WEB_PORT": "bad-port"}, clear=True), patch(
+            "roco_serverchan_notifier.web.uvicorn.run"
+        ) as run_mock:
+            web_module.cli()
+
+        self.assertEqual(run_mock.call_args.kwargs["port"], 19892)
 
     def test_console_generates_default_password_when_env_password_is_empty(self):
         request = SimpleNamespace(cookies={})

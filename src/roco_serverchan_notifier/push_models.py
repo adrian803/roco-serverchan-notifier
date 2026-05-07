@@ -5,16 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .provider_specs import PROVIDER_TYPES
-
-
-def _to_bool(value: Any, default: bool) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    return str(value).strip().lower() in {"1", "true", "yes", "on", "y"}
+from .utils import coerce_bool as _coerce_bool
 
 
 @dataclass(frozen=True)
@@ -61,7 +52,7 @@ class ProviderConfig:
             id=provider_id,
             type=provider_type,
             name=str(data.get("name") or spec.get("label") or provider_type).strip(),
-            enabled=_to_bool(data.get("enabled"), True),
+            enabled=_coerce_bool(data.get("enabled"), True),
             config=dict(data.get("config") or {}),
         )
 

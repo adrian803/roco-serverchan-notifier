@@ -17,16 +17,14 @@ from roco_serverchan_notifier.web_services import (
 )
 
 try:
-    from .helpers import FakeSession, RocoTestCase
+    from .helpers import FakeSession, RocoTestCase, make_temp_store
 except ImportError:
-    from helpers import FakeSession, RocoTestCase
+    from helpers import FakeSession, RocoTestCase, make_temp_store
 
 
 class WebServicesTests(RocoTestCase):
     def test_build_state_payload_keeps_existing_api_shape(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            store = ConfigStore(Path(temp_dir) / "config.json")
-            store.save(self.make_settings())
+        with make_temp_store(self.make_settings()) as (store, _path):
             scheduler = SimpleNamespace(state=SimpleNamespace(to_dict=lambda: {"running": True}))
 
             payload = build_state_payload(store, scheduler)
@@ -39,9 +37,7 @@ class WebServicesTests(RocoTestCase):
         self.assertIn("now", payload)
 
     def test_build_state_payload_hides_provider_env_metadata(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            store = ConfigStore(Path(temp_dir) / "config.json")
-            store.save(self.make_settings())
+        with make_temp_store(self.make_settings()) as (store, _path):
             scheduler = SimpleNamespace(state=SimpleNamespace(to_dict=lambda: {"running": True}))
 
             payload = build_state_payload(store, scheduler)
@@ -52,9 +48,7 @@ class WebServicesTests(RocoTestCase):
 
 
     def test_save_config_payload_validates_schedule_and_provider_type(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            store = ConfigStore(Path(temp_dir) / "config.json")
-            store.save(self.make_settings())
+        with make_temp_store(self.make_settings()) as (store, _path):
             scheduler = SimpleNamespace(wake=lambda: None)
 
             with self.assertRaisesRegex(ValueError, "未知通道类型"):
@@ -64,9 +58,17 @@ class WebServicesTests(RocoTestCase):
                 save_config_payload(store, scheduler, {"schedule_times": "bad", "providers": []})
 
     def test_settings_from_test_payload_rejects_unknown_provider_type(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            store = ConfigStore(Path(temp_dir) / "config.json")
-            store.save(self.make_settings())
+        with make_temp_store(self.make_settings()) as (store, _path):
+
+            with self.assertRaisesRegex(ValueError, "未知通道类型"):
+                settings_from_test_payload(store, {"config": {"providers": [{"type": "unknown"}]}})
+
+    def test_invalid_provider_payload_shape_is_rejected_consistently(self):
+        with make_temp_store(self.make_settings()) as (store, _path):
+            scheduler = SimpleNamespace(wake=lambda: None)
+
+            with self.assertRaisesRegex(ValueError, "通道配置格式错误"):
+                save_config_payload(store, scheduler, {"schedule_times": "08:01", "providers": "bad"})
 
             with self.assertRaisesRegex(ValueError, "未知通道类型"):
                 settings_from_test_payload(store, {"config": {"providers": [{"type": "unknown"}]}})

@@ -38,6 +38,8 @@ GitHub Actions 版适合已经在用 GitHub 仓库、又不想单独维护服务
 | `ROCOM_API_KEY` | 数据源接口 Key（必需） |
 | 一个推送通道 Secret | 例如 `SERVERCHAN_SENDKEY`、`PUSHPLUS_TOKEN`、`TELEGRAM_BOT_TOKEN` |
 
+如果你还没确定先用哪条通道，建议先配 [Server 酱](https://sct.ftqq.com/r/1636)。当前仓库维护者主要实测的也是 Server 酱；该链接包含推荐参数，如后续发生付费订阅，可能为项目维护者带来佣金。
+
 3. 需要时再添加 Repository Variables，例如：
 
 | 名称 | 说明 |

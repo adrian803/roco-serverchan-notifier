@@ -5,6 +5,8 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
+from .utils import to_int as _to_int
+
 
 @lru_cache(maxsize=1)
 def goods_price_info_by_name() -> dict[str, dict[str, int]]:
@@ -42,10 +44,3 @@ def _catalog_name_candidates(name: str) -> list[str]:
     if "精灵蛋" in normalized:
         candidates.append(normalized.replace("精灵蛋", "蛋"))
     return list(dict.fromkeys(candidates))
-
-
-def _to_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None

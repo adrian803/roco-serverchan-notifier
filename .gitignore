@@ -4,6 +4,10 @@ __pycache__/
 .env
 .pytest_cache/
 *.egg-info/
+*.bak
+*.log
+dist/
+cloudflare-worker/dist/
 data/
 merchant_render.jpg
 .ace-tool/

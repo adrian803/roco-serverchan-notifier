@@ -25,6 +25,8 @@ Docker 版和 Cloudflare Workers 版支持完全一致的 12 种推送通道：
 | ntfy | Base URL、Topic | 可选 bearer token、priority、tags |
 | Gotify | Base URL、App Token | 可配置 priority |
 
+如果你只是想先把项目跑通，推荐先配 [Server 酱](https://sct.ftqq.com/r/1636)。当前仓库维护者主要实测的也是 Server 酱；该链接包含推荐参数，如后续发生付费订阅，可能为项目维护者带来佣金。
+
 如果你在查具体变量名，请搭配 [环境变量参考](environment-variables.md) 一起看。
 
 ## Docker Web 控制台的通道卡片说明

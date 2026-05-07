@@ -6,11 +6,8 @@ import hmac
 import time
 import urllib.parse
 
-import requests
-
+from .push_http import HttpSession
 from .push_models import ProviderConfig
-
-HttpSession = requests.Session
 
 _WECOM_TOKEN_CACHE: dict[tuple[str, str], tuple[str, float]] = {}
 

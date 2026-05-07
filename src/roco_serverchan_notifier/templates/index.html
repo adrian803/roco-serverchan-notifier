@@ -12,7 +12,9 @@
       if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
     })();
   </script>
+  <link rel="stylesheet" href="/static/theme.css">
   <link rel="stylesheet" href="/static/console.css">
+  <link rel="modulepreload" href="/static/theme.js">
 
 </head>
 <body>
@@ -127,7 +129,7 @@
           <div class="row"><span>状态码</span><strong id="lastCode">-</strong></div>
         </div>
         <div class="actions">
-          <div id="message" class="logbox">等待状态刷新</div>
+          <div id="message" class="logbox" role="status" aria-live="polite">等待状态刷新</div>
         </div>
         <div class="result-heading">最近推送结果</div>
         <div id="pushResults" class="result-list"></div>

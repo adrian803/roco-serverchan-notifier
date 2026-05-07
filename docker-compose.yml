@@ -9,6 +9,8 @@ services:
     volumes:
       - ./data:/data
     environment:
+      # Provider env vars below are derived from src/roco_serverchan_notifier/shared/provider_manifest.json.
+      # When provider fields/env bindings change, keep this list in sync with the manifest.
       TZ: Asia/Shanghai
       CONFIG_PATH: /data/config.json
       APP_MODE: ${APP_MODE:-auto}

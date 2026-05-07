@@ -19,6 +19,7 @@ class GitHubActionsWorkflowTests(unittest.TestCase):
         self.assertIn("actions/setup-python@v6", content)
         self.assertIn("astral-sh/setup-uv@v7", content)
         self.assertIn("actions/setup-node@v6", content)
+        self.assertIn("./.github/actions/test-cf-worker", content)
 
     def test_scheduled_push_workflow_uses_node24_capable_actions(self):
         content = self._read("scheduled-push.yml")
@@ -32,6 +33,7 @@ class GitHubActionsWorkflowTests(unittest.TestCase):
 
         self.assertIn("actions/checkout@v5", content)
         self.assertIn("actions/setup-node@v6", content)
+        self.assertIn("./.github/actions/test-cf-worker", content)
 
     def test_docker_publish_workflow_uses_node24_capable_actions(self):
         content = self._read("docker-publish.yml")

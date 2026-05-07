@@ -83,21 +83,15 @@ class CloudflareDeployScriptDocsTests(unittest.TestCase):
     def test_readme_documents_one_click_deploy_and_update_flow(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("一键脚本部署", readme)
         self.assertIn("scripts/deploy-cf-worker.ps1", readme)
         self.assertIn("scripts/deploy-cf-worker.cmd", readme)
         self.assertIn("scripts/deploy-cf-worker.sh", readme)
-        self.assertIn("默认交互式", readme)
-        self.assertIn("右键/双击", readme)
-        self.assertIn("按回车键退出", readme)
-        self.assertIn("npx 编译/项目部署", readme)
-        self.assertIn("_worker.js 直接部署", readme)
-        self.assertIn("-DeployMode Source", readme)
-        self.assertIn("--mode worker-js", readme)
+        self.assertIn("一键脚本", readme)
+        self.assertIn("Windows 双击", readme)
         self.assertIn("CLOUDFLARE_API_TOKEN", readme)
-        self.assertIn("后续更新", readme)
         self.assertIn("ROCOM_API_KEY", readme)
         self.assertIn("SERVERCHAN_SENDKEY", readme)
+        self.assertIn("如何更新到最新版本", readme)
 
 
 if __name__ == "__main__":

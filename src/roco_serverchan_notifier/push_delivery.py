@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import atexit
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable
+
+
+_ALL_MODE_EXECUTOR = ThreadPoolExecutor()
+
+
+def _shutdown_all_mode_executor() -> None:
+    _ALL_MODE_EXECUTOR.shutdown(wait=False, cancel_futures=True)
+
+
+atexit.register(_shutdown_all_mode_executor)
 
 
 @dataclass(frozen=True)
@@ -46,13 +57,12 @@ def send_delivery_with_options(
 
     targets = _delivery_targets(enabled, mode, delivery_options)
     if mode == "all":
-        with ThreadPoolExecutor(max_workers=len(targets) or 1) as executor:
-            results = list(
-                executor.map(
-                    lambda provider: _send_with_new_session(provider, context),
-                    targets,
-                )
+        results = list(
+            _ALL_MODE_EXECUTOR.map(
+                lambda provider: _send_with_new_session(provider, context),
+                targets,
             )
+        )
         return DeliveryReport(any(result.success for result in results), mode, results)
 
     return _send_sequential(

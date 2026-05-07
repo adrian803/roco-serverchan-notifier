@@ -12,7 +12,9 @@
       if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
     })();
   </script>
+  <link rel="stylesheet" href="/static/theme.css">
   <link rel="stylesheet" href="/static/login.css">
+  <link rel="modulepreload" href="/static/theme.js">
 
 </head>
 <body>
@@ -60,7 +62,7 @@
     </section>
     <div class="footnote">会话凭据使用 HttpOnly Cookie 保存。未设置密码时请查看启动日志中的随机默认密码。</div>
   </main>
-  <script src="/static/login.js" defer></script>
+  <script type="module" src="/static/login.js"></script>
 
 </body>
 </html>

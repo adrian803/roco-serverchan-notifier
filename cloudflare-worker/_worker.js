@@ -1755,25 +1755,36 @@ async function postJson(provider, url, payload, timeoutSec, options) {
 }
 __name(postJson, "postJson");
 
-// src/push-provider-senders/chat.ts
-function chatText(message) {
-  return `${message.title}
+// src/push-provider-senders/common.ts
+function splitCsv(value) {
+  if (!value) return [];
+  return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+__name(splitCsv, "splitCsv");
+function providerConfigText(provider, fieldName) {
+  return (provider.config[fieldName] || providerFieldDefault(provider.type, fieldName) || "").trim();
+}
+__name(providerConfigText, "providerConfigText");
 
-${message.markdown}`;
+// src/push-provider-senders/bark.ts
+async function sendBark(provider, message, timeoutSec) {
+  const serverUrl = providerConfigText(provider, "server_url").replace(/\/$/, "");
+  const url = `${serverUrl}/${provider.config.device_key}`;
+  const payload = {
+    title: message.title,
+    body: `${message.body}
+
+${message.markdown}`
+  };
+  const group = providerConfigText(provider, "group");
+  if (group) payload.group = group;
+  return postJson(provider, url, payload, timeoutSec, {
+    successCodes: /* @__PURE__ */ new Set([200, "200", 0, "0"])
+  });
 }
-__name(chatText, "chatText");
-async function sendTelegram(provider, message, timeoutSec) {
-  return postJson(
-    provider,
-    `https://api.telegram.org/bot${provider.config.bot_token}/sendMessage`,
-    {
-      chat_id: provider.config.chat_id,
-      text: chatText(message)
-    },
-    timeoutSec
-  );
-}
-__name(sendTelegram, "sendTelegram");
+__name(sendBark, "sendBark");
+
+// src/push-provider-senders/discord.ts
 async function sendDiscord(provider, message, timeoutSec) {
   const webhook = provider.config.webhook;
   const separator = webhook.includes("?") ? "&" : "?";
@@ -1784,7 +1795,9 @@ async function sendDiscord(provider, message, timeoutSec) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: chatText(message),
+          content: `${message.title}
+
+${message.markdown}`,
           allowed_mentions: { parse: [] }
         })
       },
@@ -1803,184 +1816,6 @@ async function sendDiscord(provider, message, timeoutSec) {
   }
 }
 __name(sendDiscord, "sendDiscord");
-
-// src/push-provider-senders/common.ts
-function splitCsv(value) {
-  if (!value) return [];
-  return value.split(",").map((s) => s.trim()).filter(Boolean);
-}
-__name(splitCsv, "splitCsv");
-function providerConfigText(provider, fieldName) {
-  return (provider.config[fieldName] || providerFieldDefault(provider.type, fieldName) || "").trim();
-}
-__name(providerConfigText, "providerConfigText");
-
-// src/push-provider-senders/token.ts
-async function sendServerChan(provider, message, timeoutSec) {
-  const sendkey = provider.config.sendkey;
-  const url = `https://sctapi.ftqq.com/${sendkey}.send`;
-  const body = new URLSearchParams({
-    title: message.title,
-    desp: message.markdown
-  });
-  try {
-    const resp = await fetchWithTimeout(
-      url,
-      { method: "POST", body },
-      timeoutSec
-    );
-    const successCodes = /* @__PURE__ */ new Set([0, "0", null, void 0]);
-    const { payload, text } = await readResponsePayload(resp);
-    return resultFromParsedResponse(provider, resp, payload, text, successCodes);
-  } catch (err) {
-    return providerErrorResult(provider, err);
-  }
-}
-__name(sendServerChan, "sendServerChan");
-async function sendPushPlus(provider, message, timeoutSec) {
-  const payload = {
-    token: provider.config.token,
-    title: message.title,
-    content: message.markdown,
-    template: "markdown"
-  };
-  for (const key of ["topic", "channel"]) {
-    const v = (provider.config[key] || "").trim();
-    if (v) payload[key] = v;
-  }
-  return postJson(provider, "https://www.pushplus.plus/send", payload, timeoutSec, {
-    successCodes: /* @__PURE__ */ new Set([200, "200", 0, "0"])
-  });
-}
-__name(sendPushPlus, "sendPushPlus");
-async function sendWxPusher(provider, message, timeoutSec) {
-  const payload = {
-    appToken: provider.config.app_token,
-    content: message.markdown,
-    summary: message.title,
-    contentType: 3
-  };
-  const uids = splitCsv(provider.config.uids);
-  const topicIds = splitCsv(provider.config.topic_ids);
-  if (uids.length > 0) payload.uids = uids;
-  if (topicIds.length > 0) {
-    payload.topicIds = topicIds.map((id) => /^\d+$/.test(id) ? parseInt(id, 10) : id);
-  }
-  return postJson(
-    provider,
-    "https://wxpusher.zjiecode.com/api/send/message",
-    payload,
-    timeoutSec,
-    { successCodes: /* @__PURE__ */ new Set([1e3, "1000", 0, "0"]) }
-  );
-}
-__name(sendWxPusher, "sendWxPusher");
-async function sendBark(provider, message, timeoutSec) {
-  const serverUrl = providerConfigText(provider, "server_url").replace(/\/$/, "");
-  const url = `${serverUrl}/${provider.config.device_key}`;
-  const payload = {
-    title: message.title,
-    body: `${message.body}
-
-${message.markdown}`
-  };
-  const group = providerConfigText(provider, "group");
-  if (group) payload.group = group;
-  return postJson(provider, url, payload, timeoutSec, {
-    successCodes: /* @__PURE__ */ new Set([200, "200", 0, "0"])
-  });
-}
-__name(sendBark, "sendBark");
-async function sendNtfy(provider, message, timeoutSec) {
-  const baseUrl = providerConfigText(provider, "base_url").replace(/\/$/, "");
-  const url = `${baseUrl}/${provider.config.topic}`;
-  const headers = {
-    Title: message.title,
-    Markdown: "yes"
-  };
-  for (const [cfgKey, headerName] of [
-    ["priority", "Priority"],
-    ["tags", "Tags"]
-  ]) {
-    const v = providerConfigText(provider, cfgKey);
-    if (v) headers[headerName] = v;
-  }
-  const token = providerConfigText(provider, "token");
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  try {
-    const resp = await fetchWithTimeout(
-      url,
-      {
-        method: "POST",
-        headers,
-        body: message.markdown
-      },
-      timeoutSec
-    );
-    const success = resp.status >= 200 && resp.status < 300;
-    const text = (await resp.text()).slice(0, 200) || resp.statusText;
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      providerType: provider.type,
-      success,
-      message: text,
-      statusCode: resp.status
-    };
-  } catch (err) {
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      providerType: provider.type,
-      success: false,
-      message: String(err),
-      statusCode: null
-    };
-  }
-}
-__name(sendNtfy, "sendNtfy");
-async function sendGotify(provider, message, timeoutSec) {
-  const baseUrl = (provider.config.base_url || "").replace(/\/$/, "");
-  const appToken = encodeURIComponent(provider.config.app_token);
-  const url = `${baseUrl}/message?token=${appToken}`;
-  const priority = parseInt(providerConfigText(provider, "priority"), 10) || 5;
-  const payload = {
-    title: message.title,
-    message: message.markdown,
-    priority
-  };
-  try {
-    const resp = await fetchWithTimeout(
-      url,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      },
-      timeoutSec
-    );
-    const success = resp.status >= 200 && resp.status < 300;
-    const text = (await resp.text()).slice(0, 200) || resp.statusText;
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      providerType: provider.type,
-      success,
-      message: text,
-      statusCode: resp.status
-    };
-  } catch (err) {
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      providerType: provider.type,
-      success: false,
-      message: String(err),
-      statusCode: null
-    };
-  }
-}
-__name(sendGotify, "sendGotify");
 
 // src/push-provider-auth.ts
 var wecomTokenCache = /* @__PURE__ */ new Map();
@@ -2049,7 +1884,7 @@ ${secret}`;
 }
 __name(feishuSign, "feishuSign");
 
-// src/push-provider-senders/webhook.ts
+// src/push-provider-senders/dingtalk_bot.ts
 async function sendDingTalkBot(provider, message, timeoutSec) {
   const webhook = await appendDingTalkSign(
     provider.config.webhook,
@@ -2062,6 +1897,8 @@ async function sendDingTalkBot(provider, message, timeoutSec) {
   return postJson(provider, webhook, payload, timeoutSec);
 }
 __name(sendDingTalkBot, "sendDingTalkBot");
+
+// src/push-provider-senders/feishu_bot.ts
 async function sendFeishuBot(provider, message, timeoutSec) {
   const payload = {
     msg_type: "post",
@@ -2088,7 +1925,165 @@ ${message.markdown}` }]
 }
 __name(sendFeishuBot, "sendFeishuBot");
 
-// src/push-provider-senders/wecom.ts
+// src/push-provider-senders/gotify.ts
+async function sendGotify(provider, message, timeoutSec) {
+  const baseUrl = (provider.config.base_url || "").replace(/\/$/, "");
+  const appToken = encodeURIComponent(provider.config.app_token);
+  const url = `${baseUrl}/message?token=${appToken}`;
+  const priority = parseInt(providerConfigText(provider, "priority"), 10) || 5;
+  const payload = {
+    title: message.title,
+    message: message.markdown,
+    priority
+  };
+  try {
+    const resp = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      },
+      timeoutSec
+    );
+    const { payload: respPayload, text } = await readResponsePayload(resp);
+    return resultFromParsedResponse(
+      provider,
+      resp,
+      respPayload,
+      text,
+      /* @__PURE__ */ new Set([null, void 0])
+    );
+  } catch (err) {
+    return providerErrorResult(provider, err);
+  }
+}
+__name(sendGotify, "sendGotify");
+
+// src/push-provider-senders/ntfy.ts
+async function sendNtfy(provider, message, timeoutSec) {
+  const baseUrl = providerConfigText(provider, "base_url").replace(/\/$/, "");
+  const url = `${baseUrl}/${provider.config.topic}`;
+  const headers = {
+    Title: message.title,
+    Markdown: "yes"
+  };
+  for (const [cfgKey, headerName] of [
+    ["priority", "Priority"],
+    ["tags", "Tags"]
+  ]) {
+    const v = providerConfigText(provider, cfgKey);
+    if (v) headers[headerName] = v;
+  }
+  const token = providerConfigText(provider, "token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  try {
+    const resp = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: message.markdown
+      },
+      timeoutSec
+    );
+    const text = await resp.text();
+    return resultFromParsedResponse(
+      provider,
+      resp,
+      {},
+      text,
+      /* @__PURE__ */ new Set([null, void 0])
+    );
+  } catch (err) {
+    return providerErrorResult(provider, err);
+  }
+}
+__name(sendNtfy, "sendNtfy");
+
+// src/push-provider-senders/pushplus.ts
+async function sendPushPlus(provider, message, timeoutSec) {
+  const payload = {
+    token: provider.config.token,
+    title: message.title,
+    content: message.markdown,
+    template: "markdown"
+  };
+  for (const key of ["topic", "channel"]) {
+    const v = (provider.config[key] || "").trim();
+    if (v) payload[key] = v;
+  }
+  return postJson(provider, "https://www.pushplus.plus/send", payload, timeoutSec, {
+    successCodes: /* @__PURE__ */ new Set([200, "200", 0, "0"])
+  });
+}
+__name(sendPushPlus, "sendPushPlus");
+
+// src/push-provider-senders/serverchan.ts
+async function sendServerChan(provider, message, timeoutSec) {
+  const sendkey = provider.config.sendkey;
+  const url = `https://sctapi.ftqq.com/${sendkey}.send`;
+  const body = new URLSearchParams({
+    title: message.title,
+    desp: message.markdown
+  });
+  try {
+    const resp = await fetchWithTimeout(
+      url,
+      { method: "POST", body },
+      timeoutSec
+    );
+    const successCodes = /* @__PURE__ */ new Set([0, "0", null, void 0]);
+    const { payload, text } = await readResponsePayload(resp);
+    return resultFromParsedResponse(provider, resp, payload, text, successCodes);
+  } catch (err) {
+    return providerErrorResult(provider, err);
+  }
+}
+__name(sendServerChan, "sendServerChan");
+
+// src/push-provider-senders/telegram.ts
+async function sendTelegram(provider, message, timeoutSec) {
+  return postJson(
+    provider,
+    `https://api.telegram.org/bot${provider.config.bot_token}/sendMessage`,
+    {
+      chat_id: provider.config.chat_id,
+      text: `${message.title}
+
+${message.markdown}`
+    },
+    timeoutSec
+  );
+}
+__name(sendTelegram, "sendTelegram");
+
+// src/push-provider-senders/wecom_bot.ts
+async function sendWecomBot(provider, message, timeoutSec) {
+  let webhook = (provider.config.webhook || "").trim();
+  if (!webhook) {
+    const key = (provider.config.key || "").trim();
+    if (!key) {
+      return {
+        providerId: provider.id,
+        providerName: provider.name,
+        providerType: provider.type,
+        success: false,
+        message: "\u7F3A\u5C11 webhook \u6216 key",
+        statusCode: null
+      };
+    }
+    webhook = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${key}`;
+  }
+  const payload = {
+    msgtype: "markdown",
+    markdown: { content: message.markdown }
+  };
+  return postJson(provider, webhook, payload, timeoutSec);
+}
+__name(sendWecomBot, "sendWecomBot");
+
+// src/push-provider-senders/wecomchan.ts
 async function sendWecomChan(provider, message, timeoutSec) {
   try {
     const token = await getWecomToken(
@@ -2116,29 +2111,30 @@ ${message.markdown}`
   }
 }
 __name(sendWecomChan, "sendWecomChan");
-async function sendWecomBot(provider, message, timeoutSec) {
-  let webhook = (provider.config.webhook || "").trim();
-  if (!webhook) {
-    const key = (provider.config.key || "").trim();
-    if (!key) {
-      return {
-        providerId: provider.id,
-        providerName: provider.name,
-        providerType: provider.type,
-        success: false,
-        message: "\u7F3A\u5C11 webhook \u6216 key",
-        statusCode: null
-      };
-    }
-    webhook = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${key}`;
-  }
+
+// src/push-provider-senders/wxpusher.ts
+async function sendWxPusher(provider, message, timeoutSec) {
   const payload = {
-    msgtype: "markdown",
-    markdown: { content: message.markdown }
+    appToken: provider.config.app_token,
+    content: message.markdown,
+    summary: message.title,
+    contentType: 3
   };
-  return postJson(provider, webhook, payload, timeoutSec);
+  const uids = splitCsv(provider.config.uids);
+  const topicIds = splitCsv(provider.config.topic_ids);
+  if (uids.length > 0) payload.uids = uids;
+  if (topicIds.length > 0) {
+    payload.topicIds = topicIds.map((id) => /^\d+$/.test(id) ? parseInt(id, 10) : id);
+  }
+  return postJson(
+    provider,
+    "https://wxpusher.zjiecode.com/api/send/message",
+    payload,
+    timeoutSec,
+    { successCodes: /* @__PURE__ */ new Set([1e3, "1000", 0, "0"]) }
+  );
 }
-__name(sendWecomBot, "sendWecomBot");
+__name(sendWxPusher, "sendWxPusher");
 
 // src/push-provider-senders/registry.ts
 var PROVIDER_SENDERS = {

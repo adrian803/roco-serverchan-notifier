@@ -1,21 +1,8 @@
     :root {
-      color-scheme: light;
-      --bg: #f3f0e8;
-      --bg-top: #fffaf0;
-      --bg-bottom: #e8edf2;
       --panel: rgba(255,255,255,.78);
       --panel-solid: #ffffff;
       --panel-muted: rgba(255,255,255,.56);
-      --ink: #182027;
-      --muted: #68727d;
-      --line: rgba(24,32,39,.14);
-      --soft-line: rgba(24,32,39,.08);
-      --accent: #0a6fb7;
-      --accent-strong: #064f86;
-      --accent-soft: rgba(10,111,183,.12);
       --accent-2: #bd6b00;
-      --danger: #b84232;
-      --ok: #1d8150;
       --input: rgba(255,255,255,.9);
       --input-focus: #ffffff;
       --log-bg: #14202b;
@@ -29,23 +16,10 @@
 
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        color-scheme: dark;
-        --bg: #0b1015;
-        --bg-top: #0f1a22;
-        --bg-bottom: #070b0f;
         --panel: rgba(19,28,37,.76);
         --panel-solid: #121b24;
         --panel-muted: rgba(24,36,47,.6);
-        --ink: #ecf4f8;
-        --muted: #9aaab6;
-        --line: rgba(220,238,247,.16);
-        --soft-line: rgba(220,238,247,.09);
-        --accent: #64c7ff;
-        --accent-strong: #9fddff;
-        --accent-soft: rgba(100,199,255,.14);
         --accent-2: #ffbe63;
-        --danger: #ff8d7d;
-        --ok: #77dda9;
         --input: rgba(10,17,23,.74);
         --input-focus: rgba(13,23,31,.92);
         --log-bg: #060a0e;
@@ -56,23 +30,10 @@
     }
 
     :root[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #0b1015;
-      --bg-top: #0f1a22;
-      --bg-bottom: #070b0f;
       --panel: rgba(19,28,37,.76);
       --panel-solid: #121b24;
       --panel-muted: rgba(24,36,47,.6);
-      --ink: #ecf4f8;
-      --muted: #9aaab6;
-      --line: rgba(220,238,247,.16);
-      --soft-line: rgba(220,238,247,.09);
-      --accent: #64c7ff;
-      --accent-strong: #9fddff;
-      --accent-soft: rgba(100,199,255,.14);
       --accent-2: #ffbe63;
-      --danger: #ff8d7d;
-      --ok: #77dda9;
       --input: rgba(10,17,23,.74);
       --input-focus: rgba(13,23,31,.92);
       --log-bg: #060a0e;
@@ -376,18 +337,6 @@
       min-width: 44px;
       padding: 0;
       flex: 0 0 auto;
-    }
-
-    .theme-icon {
-      width: 18px;
-      height: 18px;
-      display: block;
-      transition: transform .18s ease;
-    }
-
-    .theme-toggle:hover .theme-icon,
-    .theme-toggle:focus-visible .theme-icon {
-      transform: rotate(12deg) scale(1.04);
     }
 
     .notice {

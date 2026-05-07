@@ -8,6 +8,7 @@ from typing import Any
 
 from .config_store import ConfigStore
 from .time_utils import beijing_now
+from .utils import env_bool
 
 
 CONSOLE_PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256"
@@ -21,15 +22,8 @@ _CONSOLE_AUTH_CACHE_STORE_ID: int | None = None
 _LOGGED_CONSOLE_PASSWORD = False
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on", "y"}
-
-
 def allow_empty_password() -> bool:
-    return _env_bool("CONSOLE_ALLOW_EMPTY_PASSWORD", False)
+    return env_bool("CONSOLE_ALLOW_EMPTY_PASSWORD", False)
 
 
 def configured_auth_password() -> str:

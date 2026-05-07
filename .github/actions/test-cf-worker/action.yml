@@ -1,0 +1,25 @@
+name: Test CF Worker
+description: Install, test, type-check, and validate the pasteable Worker bundle
+
+runs:
+  using: composite
+  steps:
+    - name: Install CF Worker dependencies
+      working-directory: cloudflare-worker
+      shell: bash
+      run: npm ci
+
+    - name: Run CF Worker tests
+      working-directory: cloudflare-worker
+      shell: bash
+      run: npm test
+
+    - name: Type-check CF Worker
+      working-directory: cloudflare-worker
+      shell: bash
+      run: npx tsc --noEmit
+
+    - name: Validate pasteable Worker bundle
+      working-directory: cloudflare-worker
+      shell: bash
+      run: npm run check:worker

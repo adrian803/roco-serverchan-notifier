@@ -49,18 +49,5 @@ jobs:
           cache: npm
           cache-dependency-path: cloudflare-worker/package-lock.json
 
-      - name: Install CF Worker dependencies
-        working-directory: cloudflare-worker
-        run: npm ci
-
-      - name: Run CF Worker tests
-        working-directory: cloudflare-worker
-        run: npm test
-
-      - name: Type-check CF Worker
-        working-directory: cloudflare-worker
-        run: npx tsc --noEmit
-
-      - name: Validate pasteable Worker bundle
-        working-directory: cloudflare-worker
-        run: npm run check:worker
+      - name: Test CF Worker
+        uses: ./.github/actions/test-cf-worker

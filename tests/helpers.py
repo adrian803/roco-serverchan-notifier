@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-import sys
-import unittest
 import json
+import sys
+import tempfile
+import unittest
+from contextlib import contextmanager
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +13,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from roco_serverchan_notifier.config import Settings
+from roco_serverchan_notifier.config_store import ConfigStore
 from roco_serverchan_notifier.push import ProviderConfig
 
 FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "cross_runtime_cases.json"
@@ -18,6 +21,16 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "cross_runtime_cas
 
 def load_cross_runtime_fixture():
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
+@contextmanager
+def make_temp_store(settings: Settings | None = None):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        path = Path(temp_dir) / "config.json"
+        store = ConfigStore(path)
+        if settings is not None:
+            store.save(settings)
+        yield store, path
 
 
 class FakeResponse:

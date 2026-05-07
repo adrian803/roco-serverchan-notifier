@@ -7,6 +7,7 @@ from typing import Any
 from .env_providers import env_providers, env_text_or_default, parse_providers, provider_order
 from .provider_specs import provider_secret_fields
 from .push_models import ProviderConfig
+from .utils import coerce_bool as _coerce_bool, env_bool
 
 
 DEFAULT_GAME_API_URL = (
@@ -15,11 +16,17 @@ DEFAULT_GAME_API_URL = (
 DEFAULT_SCHEDULE_TIMES = "08:05,12:05,16:05,20:05"
 
 
-def env_bool(name: str, default: bool = False) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on", "y"}
+def _validate_schedule_times(value: str, fallback: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    from .schedule_policy import parse_schedule_times
+
+    try:
+        parse_schedule_times(text)
+    except ValueError:
+        return fallback
+    return text
 
 
 def env_int(name: str, default: int) -> int:
@@ -32,14 +39,7 @@ def env_int(name: str, default: int) -> int:
         return default
 
 
-def coerce_bool(value: Any, default: bool) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    return str(value).strip().lower() in {"1", "true", "yes", "on", "y"}
+coerce_bool = _coerce_bool
 
 
 def public_provider(provider: ProviderConfig) -> dict[str, Any]:
@@ -71,12 +71,16 @@ class Settings:
     def from_env(cls) -> "Settings":
         providers = env_providers()
         default_provider_id = providers[0].id if providers else ""
+        schedule_times = _validate_schedule_times(
+            env_text_or_default("SCHEDULE_TIMES", DEFAULT_SCHEDULE_TIMES),
+            DEFAULT_SCHEDULE_TIMES,
+        )
         return cls(
             rocom_api_key=os.environ.get("ROCOM_API_KEY", "").strip(),
             game_api_url=env_text_or_default("ROCOM_API_URL", DEFAULT_GAME_API_URL),
             notify_empty=env_bool("NOTIFY_EMPTY", False),
             http_timeout=env_int("HTTP_TIMEOUT", 30),
-            schedule_times=env_text_or_default("SCHEDULE_TIMES", DEFAULT_SCHEDULE_TIMES),
+            schedule_times=schedule_times,
             run_on_start=env_bool("RUN_ON_START", False),
             include_price_info=env_bool("INCLUDE_PRICE_INFO", False),
             delivery_mode=os.environ.get("DELIVERY_MODE", "all").strip() or "all",
@@ -121,13 +125,17 @@ class Settings:
         selected_provider = text("selected_provider", base.selected_provider)
         if selected_provider not in provider_ids:
             selected_provider = next(iter(provider_order(providers)), "")
+        schedule_times = _validate_schedule_times(
+            text("schedule_times", base.schedule_times) or DEFAULT_SCHEDULE_TIMES,
+            base.schedule_times or DEFAULT_SCHEDULE_TIMES,
+        )
 
         return cls(
             rocom_api_key=text("rocom_api_key", base.rocom_api_key),
             game_api_url=text("game_api_url", base.game_api_url) or DEFAULT_GAME_API_URL,
             notify_empty=coerce_bool(data.get("notify_empty"), base.notify_empty),
             http_timeout=max(1, http_timeout),
-            schedule_times=text("schedule_times", base.schedule_times) or DEFAULT_SCHEDULE_TIMES,
+            schedule_times=schedule_times,
             run_on_start=coerce_bool(data.get("run_on_start"), base.run_on_start),
             include_price_info=coerce_bool(data.get("include_price_info"), base.include_price_info),
             delivery_mode=delivery_mode,

@@ -32,6 +32,20 @@ def build_state_payload(store: ConfigStore, scheduler: Any) -> dict[str, Any]:
     }
 
 
+def _validate_provider_payloads(providers: Any) -> list[dict[str, Any]]:
+    if not isinstance(providers, list):
+        raise ValueError("通道配置格式错误")
+    validated: list[dict[str, Any]] = []
+    for provider in providers:
+        if not isinstance(provider, dict):
+            raise ValueError("通道配置格式错误")
+        provider_type = provider.get("type")
+        if provider_type not in PROVIDER_TYPES:
+            raise ValueError(f"未知通道类型: {provider_type}")
+        validated.append(provider)
+    return validated
+
+
 def validate_config_payload(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("配置格式错误")
@@ -42,14 +56,7 @@ def validate_config_payload(payload: Any) -> dict[str, Any]:
     except ValueError as exc:
         raise ValueError(f"定时格式错误: {exc}") from exc
 
-    providers = payload.get("providers", [])
-    if not isinstance(providers, list):
-        raise ValueError("通道配置格式错误")
-    for provider in providers:
-        if not isinstance(provider, dict):
-            raise ValueError("通道配置格式错误")
-        if provider.get("type") not in PROVIDER_TYPES:
-            raise ValueError(f"未知通道类型: {provider.get('type')}")
+    _validate_provider_payloads(payload.get("providers", []))
 
     return payload
 
@@ -70,10 +77,7 @@ def settings_from_test_payload(store: ConfigStore, payload: Any) -> Settings:
     if not isinstance(draft_config, dict):
         return settings
 
-    for provider in draft_config.get("providers", []):
-        if not isinstance(provider, dict) or provider.get("type") not in PROVIDER_TYPES:
-            provider_type = provider.get("type") if isinstance(provider, dict) else provider
-            raise ValueError(f"未知通道类型: {provider_type}")
+    _validate_provider_payloads(draft_config.get("providers", []))
 
     return Settings.from_mapping(draft_config, base=settings, keep_blank_secrets=True)
 

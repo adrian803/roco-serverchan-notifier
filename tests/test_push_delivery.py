@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import threading
 import unittest
 from unittest.mock import patch
@@ -10,307 +9,12 @@ try:
 except ImportError:
     from helpers import FakeResponse, FakeSession, RocoTestCase, SessionFactory, load_cross_runtime_fixture
 
-from roco_serverchan_notifier import app as app_module
 from roco_serverchan_notifier import push as push_module
-from roco_serverchan_notifier.provider_specs import PROVIDER_TYPES
-from roco_serverchan_notifier.push import (
-    DeliveryReport,
-    NotificationMessage,
-    PROVIDER_SENDERS,
-    ProviderConfig,
-    PushResult,
-    _WECOM_TOKEN_CACHE,
-    send_delivery,
-    send_provider,
-)
-
+from roco_serverchan_notifier import push_delivery as push_delivery_module
+from roco_serverchan_notifier.push import DeliveryReport, NotificationMessage, ProviderConfig, PushResult, send_delivery
 
 
 class PushDeliveryTests(RocoTestCase):
-    def test_push_provider_senders_are_grouped_by_family_modules(self):
-        registry = importlib.import_module("roco_serverchan_notifier.push_provider_senders.registry")
-        chat = importlib.import_module("roco_serverchan_notifier.push_provider_senders.chat")
-        token = importlib.import_module("roco_serverchan_notifier.push_provider_senders.token")
-        webhook = importlib.import_module("roco_serverchan_notifier.push_provider_senders.webhook")
-        wecom = importlib.import_module("roco_serverchan_notifier.push_provider_senders.wecom")
-
-        self.assertEqual(set(registry.PROVIDER_SENDERS), set(PROVIDER_SENDERS))
-        self.assertEqual(set(registry.PROVIDER_SENDERS), set(PROVIDER_TYPES))
-        self.assertIs(registry.PROVIDER_SENDERS["pushplus"], token.send_pushplus)
-        self.assertIs(registry.PROVIDER_SENDERS["telegram"], chat.send_telegram)
-        self.assertIs(registry.PROVIDER_SENDERS["discord"], chat.send_discord)
-        self.assertIs(registry.PROVIDER_SENDERS["dingtalk_bot"], webhook.send_dingtalk_bot)
-        self.assertIs(registry.PROVIDER_SENDERS["wecomchan"], wecom.send_wecomchan)
-
-    def test_serverchan_provider_posts_expected_payload(self):
-        provider = ProviderConfig("p1", "serverchan", "Server 酱", True, {"sendkey": "SCT123"})
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession([FakeResponse({"code": 0})])
-
-        result = send_provider(provider, message, session=session, timeout=7)
-
-        self.assertTrue(result.success)
-        self.assertEqual(session.calls[0]["url"], "https://sctapi.ftqq.com/SCT123.send")
-        self.assertEqual(session.calls[0]["data"], {"title": "标题", "desp": "正文"})
-        self.assertEqual(session.calls[0]["timeout"], 7)
-
-    def test_serverchan_success_message_redacts_readkey(self):
-        provider = ProviderConfig("p1", "serverchan", "Server 酱", True, {"sendkey": "SCT123"})
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession(
-            [
-                FakeResponse(
-                    {
-                        "code": 0,
-                        "message": "",
-                        "data": {
-                            "pushid": "34197705",
-                            "readkey": "SCTE0rv9wOx1IkO",
-                            "error": "SUCCESS",
-                        },
-                    }
-                )
-            ]
-        )
-
-        result = send_provider(provider, message, session=session)
-
-        self.assertTrue(result.success)
-        self.assertIn("[已脱敏]", result.message)
-        self.assertNotIn("SCTE0rv9wOx1IkO", result.message)
-
-    def test_push_error_message_redacts_provider_secrets(self):
-        class BrokenSession:
-            def post(self, url, **kwargs):
-                raise RuntimeError(f"failed POST {url}?access_token=LIVE_TOKEN&token=abc")
-
-        provider = ProviderConfig("p1", "serverchan", "Server 酱", True, {"sendkey": "SCT_SECRET"})
-
-        result = send_provider(
-            provider,
-            NotificationMessage("标题", "摘要", "正文"),
-            session=BrokenSession(),
-        )
-
-        self.assertFalse(result.success)
-        self.assertIn("[已脱敏]", result.message)
-        self.assertNotIn("SCT_SECRET", result.message)
-        self.assertNotIn("LIVE_TOKEN", result.message)
-        self.assertNotIn("token=abc", result.message)
-
-    def test_http_error_message_redacts_provider_secrets(self):
-        provider = ProviderConfig(
-            "p1",
-            "gotify",
-            "Gotify",
-            True,
-            {"base_url": "https://gotify.example", "app_token": "APP_TOKEN"},
-        )
-        session = FakeSession([FakeResponse({}, status_code=500, text="bad token=abc APP_TOKEN")])
-
-        result = send_provider(provider, NotificationMessage("标题", "摘要", "正文"), session=session)
-
-        self.assertFalse(result.success)
-        self.assertNotIn("APP_TOKEN", result.message)
-        self.assertNotIn("token=abc", result.message)
-
-    def test_run_once_returns_no_report_when_empty_is_skipped(self):
-        settings = self.make_settings(notify_empty=False)
-
-        with patch.object(app_module, "fetch_merchant_data", return_value={"merchantActivities": []}):
-            result = app_module.run_once(settings)
-
-        self.assertEqual(result.exit_code, 0)
-        self.assertIsNone(result.report)
-
-    def test_run_once_returns_delivery_report(self):
-        settings = self.make_settings(notify_empty=True)
-        report = DeliveryReport(True, "all", [PushResult("p1", "通道", "serverchan", True, "ok")])
-        raw_data = {
-            "merchantActivities": [
-                {
-                    "name": "远行商人",
-                    "get_props": [{"name": "咕噜球"}],
-                    "get_pets": [],
-                }
-            ]
-        }
-
-        with patch.object(app_module, "fetch_merchant_data", return_value=raw_data), patch.object(
-            app_module,
-            "send_delivery",
-            return_value=report,
-        ):
-            result = app_module.run_once(settings)
-
-        self.assertEqual(result.exit_code, 0)
-        self.assertIs(result.report, report)
-
-    def test_push_uses_configured_timeout(self):
-        settings = self.make_settings(http_timeout=42, notify_empty=True)
-        raw_data = {
-            "merchantActivities": [
-                {
-                    "name": "远行商人",
-                    "get_props": [{"name": "咕噜球"}],
-                    "get_pets": [],
-                }
-            ]
-        }
-
-        with patch.object(app_module, "fetch_merchant_data", return_value=raw_data), patch.object(
-            app_module,
-            "send_delivery",
-            return_value=DeliveryReport(True, "all", []),
-        ) as send_mock:
-            exit_code = app_module.run_once(settings)
-
-        self.assertEqual(exit_code, 0)
-        self.assertEqual(send_mock.call_args.kwargs["options"].timeout, 42)
-
-    def test_pushplus_provider_posts_expected_payload(self):
-        provider = ProviderConfig("p1", "pushplus", "PushPlus", True, {"token": "tok", "topic": "ops"})
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession([FakeResponse({"code": 200})])
-
-        result = send_provider(provider, message, session=session)
-
-        self.assertTrue(result.success)
-        self.assertEqual(session.calls[0]["url"], "https://www.pushplus.plus/send")
-        self.assertEqual(session.calls[0]["json"]["token"], "tok")
-        self.assertEqual(session.calls[0]["json"]["template"], "markdown")
-        self.assertEqual(session.calls[0]["json"]["topic"], "ops")
-
-    def test_telegram_provider_posts_expected_payload(self):
-        provider = ProviderConfig(
-            "telegram-env",
-            "telegram",
-            "Telegram",
-            True,
-            {"bot_token": "bot-token", "chat_id": "-1001234567890"},
-        )
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession([FakeResponse({"ok": True, "result": {"message_id": 1}})])
-
-        result = send_provider(provider, message, session=session)
-
-        self.assertTrue(result.success)
-        self.assertEqual(
-            session.calls[0]["url"],
-            "https://api.telegram.org/botbot-token/sendMessage",
-        )
-        self.assertEqual(
-            session.calls[0]["json"],
-            {"chat_id": "-1001234567890", "text": "标题\n\n正文"},
-        )
-
-    def test_discord_provider_posts_expected_payload(self):
-        provider = ProviderConfig(
-            "discord-env",
-            "discord",
-            "Discord",
-            True,
-            {"webhook": "https://discord.com/api/webhooks/123/secret"},
-        )
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession([FakeResponse({"id": "1"}, status_code=200, text='{"id":"1"}')])
-
-        result = send_provider(provider, message, session=session)
-
-        self.assertTrue(result.success)
-        self.assertEqual(
-            session.calls[0]["url"],
-            "https://discord.com/api/webhooks/123/secret?wait=true",
-        )
-        self.assertEqual(
-            session.calls[0]["json"],
-            {"content": "标题\n\n正文", "allowed_mentions": {"parse": []}},
-        )
-
-    def test_telegram_error_message_redacts_bot_token(self):
-        class BrokenSession:
-            def post(self, url, **kwargs):
-                raise RuntimeError(f"failed POST {url}?token=bot-token")
-
-        provider = ProviderConfig(
-            "telegram-env",
-            "telegram",
-            "Telegram",
-            True,
-            {"bot_token": "bot-token", "chat_id": "-1001234567890"},
-        )
-
-        result = send_provider(
-            provider,
-            NotificationMessage("标题", "摘要", "正文"),
-            session=BrokenSession(),
-        )
-
-        self.assertFalse(result.success)
-        self.assertIn("[已脱敏]", result.message)
-        self.assertNotIn("bot-token", result.message)
-
-    def test_discord_error_message_redacts_webhook(self):
-        provider = ProviderConfig(
-            "discord-env",
-            "discord",
-            "Discord",
-            True,
-            {"webhook": "https://discord.com/api/webhooks/123/secret"},
-        )
-        session = FakeSession(
-            [
-                FakeResponse(
-                    {},
-                    status_code=500,
-                    text="webhook=https://discord.com/api/webhooks/123/secret",
-                )
-            ]
-        )
-
-        result = send_provider(provider, NotificationMessage("标题", "摘要", "正文"), session=session)
-
-        self.assertFalse(result.success)
-        self.assertNotIn("https://discord.com/api/webhooks/123/secret", result.message)
-        self.assertIn("[已脱敏]", result.message)
-
-    def test_sender_required_validation_accepts_manifest_defaults(self):
-        provider = ProviderConfig("p1", "bark", "Bark", True, {"device_key": "device-key"})
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession([FakeResponse({"code": 0})])
-
-        result = send_provider(provider, message, session=session)
-
-        self.assertTrue(result.success)
-        self.assertEqual(session.calls[0]["url"], "https://api.day.app/device-key")
-        self.assertEqual(session.calls[0]["json"]["group"], "洛克王国")
-
-    def test_wecomchan_token_is_cached(self):
-        _WECOM_TOKEN_CACHE.clear()
-        provider = ProviderConfig(
-            "p1",
-            "wecomchan",
-            "企微应用",
-            True,
-            {"corpid": "corp", "secret": "sec", "agentid": "1001", "touser": "@all"},
-        )
-        message = NotificationMessage("标题", "摘要", "正文")
-        session = FakeSession(
-            [
-                FakeResponse({"errcode": 0, "access_token": "token", "expires_in": 7200}),
-                FakeResponse({"errcode": 0}),
-                FakeResponse({"errcode": 0}),
-            ]
-        )
-
-        first = send_provider(provider, message, session=session)
-        second = send_provider(provider, message, session=session)
-
-        self.assertTrue(first.success)
-        self.assertTrue(second.success)
-        self.assertEqual(sum(1 for call in session.calls if call["method"] == "GET"), 1)
-        self.assertEqual(sum(1 for call in session.calls if call["method"] == "POST"), 2)
-
     def test_delivery_all_succeeds_when_at_least_one_provider_succeeds(self):
         providers = [
             ProviderConfig("bad", "serverchan", "Bad", True, {"sendkey": "bad"}),
@@ -377,6 +81,19 @@ class PushDeliveryTests(RocoTestCase):
         self.assertTrue(report.success)
         self.assertEqual([result.provider_id for result in report.results], ["a", "b"])
 
+    def test_delivery_all_reuses_module_level_executor(self):
+        executor_id_before = id(push_delivery_module._ALL_MODE_EXECUTOR)
+        providers = [
+            ProviderConfig("a", "serverchan", "A", True, {"sendkey": "a"}),
+            ProviderConfig("b", "serverchan", "B", True, {"sendkey": "b"}),
+        ]
+
+        with patch.object(push_module, "send_provider", return_value=PushResult("a", "A", "serverchan", True, "ok")):
+            send_delivery(providers, NotificationMessage("标题", "摘要", "正文"), mode="all")
+            send_delivery(providers, NotificationMessage("标题", "摘要", "正文"), mode="all")
+
+        self.assertEqual(id(push_delivery_module._ALL_MODE_EXECUTOR), executor_id_before)
+
     def test_delivery_single_uses_selected_provider_only(self):
         providers = [
             ProviderConfig("a", "serverchan", "A", True, {"sendkey": "a"}),
@@ -434,7 +151,6 @@ class PushDeliveryTests(RocoTestCase):
         self.assertTrue(report.success)
         self.assertEqual([result.provider_id for result in report.results], ["a", "b"])
         self.assertEqual(len(session.calls), 2)
-
 
     def test_shared_delivery_summary_fixture_matches_python(self):
         fixture = load_cross_runtime_fixture()

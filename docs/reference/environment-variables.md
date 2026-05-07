@@ -44,6 +44,8 @@
 
 没有 `./data/config.json` 且配置文件未写入 `providers` 时，程序会根据环境变量自动创建推送通道。只填你要用的那一组即可。
 
+如果你只准备先接一条推送通道，建议优先从 [Server 酱](https://sct.ftqq.com/r/1636) 开始。当前仓库维护者主要实测的也是 Server 酱；该链接包含推荐参数，如后续发生付费订阅，可能为项目维护者带来佣金。
+
 | 通道 | 最少需要 | 字段解释 | 可选 |
 |------|---------|---------|------|
 | Server 酱 | `SERVERCHAN_SENDKEY` | `SERVERCHAN_SENDKEY`：Server 酱后台生成的 SendKey。 | — |

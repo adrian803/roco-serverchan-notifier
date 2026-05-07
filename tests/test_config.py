@@ -237,6 +237,20 @@ class ConfigTests(RocoTestCase):
         )
         self.assertEqual(settings.schedule_times, "08:05,12:05,16:05,20:05")
 
+    def test_settings_from_env_falls_back_when_schedule_times_is_invalid(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "ROCOM_API_KEY": "rocom-key",
+                "SERVERCHAN_SENDKEY": "send-key",
+                "SCHEDULE_TIMES": "bad",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+
+        self.assertEqual(settings.schedule_times, "08:05,12:05,16:05,20:05")
+
     def test_settings_from_env_applies_provider_defaults(self):
         with patch.dict(
             "os.environ",
@@ -431,6 +445,16 @@ class ConfigTests(RocoTestCase):
         )
 
         self.assertEqual(settings.selected_provider, "first-enabled")
+
+    def test_settings_from_mapping_falls_back_when_schedule_times_is_invalid(self):
+        base = self.make_settings(schedule_times="08:01,12:01")
+
+        settings = Settings.from_mapping(
+            {"schedule_times": "bad"},
+            base=base,
+        )
+
+        self.assertEqual(settings.schedule_times, "08:01,12:01")
 
 
 if __name__ == "__main__":

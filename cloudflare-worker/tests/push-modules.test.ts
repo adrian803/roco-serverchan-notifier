@@ -8,10 +8,18 @@ import { postJson } from "../src/push-http";
 import { redactSensitiveText } from "../src/push-redaction";
 import { sendProvider } from "../src/push-providers";
 import { PROVIDER_SENDERS } from "../src/push-provider-senders/registry";
-import { sendDiscord, sendTelegram } from "../src/push-provider-senders/chat";
-import { sendPushPlus } from "../src/push-provider-senders/token";
-import { sendDingTalkBot } from "../src/push-provider-senders/webhook";
-import { sendWecomChan } from "../src/push-provider-senders/wecom";
+import { sendBark } from "../src/push-provider-senders/bark";
+import { sendDiscord } from "../src/push-provider-senders/discord";
+import { sendDingTalkBot } from "../src/push-provider-senders/dingtalk_bot";
+import { sendFeishuBot } from "../src/push-provider-senders/feishu_bot";
+import { sendGotify } from "../src/push-provider-senders/gotify";
+import { sendNtfy } from "../src/push-provider-senders/ntfy";
+import { sendPushPlus } from "../src/push-provider-senders/pushplus";
+import { sendServerChan } from "../src/push-provider-senders/serverchan";
+import { sendTelegram } from "../src/push-provider-senders/telegram";
+import { sendWecomBot } from "../src/push-provider-senders/wecom_bot";
+import { sendWecomChan } from "../src/push-provider-senders/wecomchan";
+import { sendWxPusher } from "../src/push-provider-senders/wxpusher";
 import type { DeliveryReport, NotificationMessage, ProviderConfig } from "../src/types";
 
 test("split push modules expose delivery, redaction, and provider boundaries", async () => {
@@ -35,13 +43,29 @@ test("split push modules expose delivery, redaction, and provider boundaries", a
   assert.equal(message.title, "标题");
 });
 
-test("provider senders are grouped by family modules", () => {
+test("provider senders are split by provider modules", async () => {
+  const chatModule = await import("../src/push-provider-senders/chat").catch(() => null);
+  const tokenModule = await import("../src/push-provider-senders/token").catch(() => null);
+  const webhookModule = await import("../src/push-provider-senders/webhook").catch(() => null);
+  const wecomModule = await import("../src/push-provider-senders/wecom").catch(() => null);
+
   assert.deepEqual(Object.keys(PROVIDER_SENDERS), Object.keys(PROVIDER_TYPES));
+  assert.equal(PROVIDER_SENDERS.serverchan, sendServerChan);
   assert.equal(PROVIDER_SENDERS.pushplus, sendPushPlus);
   assert.equal(PROVIDER_SENDERS.telegram, sendTelegram);
   assert.equal(PROVIDER_SENDERS.discord, sendDiscord);
+  assert.equal(PROVIDER_SENDERS.wecom_bot, sendWecomBot);
   assert.equal(PROVIDER_SENDERS.dingtalk_bot, sendDingTalkBot);
+  assert.equal(PROVIDER_SENDERS.feishu_bot, sendFeishuBot);
+  assert.equal(PROVIDER_SENDERS.wxpusher, sendWxPusher);
+  assert.equal(PROVIDER_SENDERS.bark, sendBark);
+  assert.equal(PROVIDER_SENDERS.ntfy, sendNtfy);
+  assert.equal(PROVIDER_SENDERS.gotify, sendGotify);
   assert.equal(PROVIDER_SENDERS.wecomchan, sendWecomChan);
+  assert.equal(chatModule, null);
+  assert.equal(tokenModule, null);
+  assert.equal(webhookModule, null);
+  assert.equal(wecomModule, null);
 });
 
 test("provider required validation accepts manifest defaults", async () => {

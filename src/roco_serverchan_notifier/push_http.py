@@ -68,6 +68,28 @@ def result_from_response(
     )
 
 
+def result_from_status(
+    provider: ProviderConfig,
+    response: requests.Response,
+    *,
+    success_statuses: set[int] | None = None,
+) -> PushResult:
+    success = (
+        response.status_code in success_statuses
+        if success_statuses is not None
+        else 200 <= response.status_code < 300
+    )
+    message = response.text[:200] or response.reason
+    return PushResult(
+        provider.id,
+        provider.name,
+        provider.type,
+        success,
+        redact_sensitive_text(provider, message),
+        response.status_code,
+    )
+
+
 def post_json(request: JsonPostRequest) -> PushResult:
     response = request.session.post(
         request.url,

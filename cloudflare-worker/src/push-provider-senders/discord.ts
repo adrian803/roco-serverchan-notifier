@@ -1,26 +1,6 @@
 import type { NotificationMessage, ProviderConfig, PushResult } from "../types";
 import { fetchWithTimeout } from "../rocom-client";
-import { postJson, providerErrorResult, readResponsePayload, resultFromParsedResponse } from "../push-http";
-
-function chatText(message: NotificationMessage): string {
-  return `${message.title}\n\n${message.markdown}`;
-}
-
-export async function sendTelegram(
-  provider: ProviderConfig,
-  message: NotificationMessage,
-  timeoutSec: number
-): Promise<PushResult> {
-  return postJson(
-    provider,
-    `https://api.telegram.org/bot${provider.config.bot_token}/sendMessage`,
-    {
-      chat_id: provider.config.chat_id,
-      text: chatText(message),
-    },
-    timeoutSec
-  );
-}
+import { providerErrorResult, readResponsePayload, resultFromParsedResponse } from "../push-http";
 
 export async function sendDiscord(
   provider: ProviderConfig,
@@ -37,7 +17,7 @@ export async function sendDiscord(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: chatText(message),
+          content: `${message.title}\n\n${message.markdown}`,
           allowed_mentions: { parse: [] },
         }),
       },
