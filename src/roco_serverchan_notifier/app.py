@@ -79,6 +79,23 @@ def run_once(settings: Settings) -> RunResult:
         return RunResult(0)
 
     message = build_notification_message(processed, include_price_info=settings.include_price_info)
+
+    # Optional: render image card
+    if settings.render_image:
+        try:
+            from .image_renderer import render_merchant_card
+
+            image_bytes = render_merchant_card(processed)
+            message = NotificationMessage(
+                title=message.title,
+                body=message.body,
+                markdown=message.markdown,
+                image_data=image_bytes,
+            )
+            print(f"图片渲染完成: {len(image_bytes)} bytes")
+        except Exception as exc:
+            print(f"图片渲染失败，降级为纯文本推送: {exc}")
+
     report = _send_and_log(
         settings,
         message,
