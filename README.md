@@ -1,6 +1,6 @@
 # 洛克王国世界远行商人推送控制台（飞书图片增强版）
 
-[![Docker Image](https://img.shields.io/badge/ghcr.io-boater--man%2Froco--serverchan--notifier-2496ed?logo=docker&logoColor=white)](https://github.com/boater-man/roco-serverchan-notifier/pkgs/container/roco-serverchan-notifier)
+[![Docker Image](https://img.shields.io/badge/ghcr.io-boater--man%2Froco--serverchan--notifier:image--feishu-2496ed?logo=docker&logoColor=white)](https://github.com/boater-man/roco-serverchan-notifier/pkgs/container/roco-serverchan-notifier)
 [![CI](https://github.com/boater-man/roco-serverchan-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/boater-man/roco-serverchan-notifier/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -47,12 +47,19 @@ Webhook 发送图片消息到飞书群
 
 ## 📦 镜像
 
-镜像已发布到 GitHub Container Registry：
+**本 Fork 镜像（飞书图片增强版）：**
 
 ```
-ghcr.io/boater-man/roco-serverchan-notifier:latest
-ghcr.io/boater-man/roco-serverchan-notifier:feishu-image
+ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
 ```
+
+**原版镜像（标准版）：**
+
+```
+linxi5013/roco-serverchan-notifier:latest
+```
+
+> 💡 如果只需要飞书图片推送功能，请使用本 Fork 镜像。如果使用其他推送通道或不需要图片功能，建议使用原版镜像。
 
 ## 🚀 部署
 
@@ -73,15 +80,15 @@ docker run -d \
   -e FEISHU_APP_SECRET=你的飞书AppSecret \
   -e RENDER_IMAGE=true \
   -e SCHEDULE_TIMES=08:05,12:05,16:05,20:05 \
-  ghcr.io/boater-man/roco-serverchan-notifier:latest
+  ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
 ```
 
-### Docker Compose
+### Docker Compose（飞书图片模式）
 
 ```yaml
 services:
   roco-serverchan-notifier:
-    image: ghcr.io/boater-man/roco-serverchan-notifier:latest
+    image: ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
     container_name: roco-serverchan-notifier
     restart: unless-stopped
     ports:
@@ -116,6 +123,45 @@ FEISHU_APP_ID=cli_xxxxxxxxxx
 FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
 ```
 
+### Docker（原版 - 仅文字推送）
+
+```bash
+docker run -d \
+  --name roco-serverchan-notifier \
+  --restart unless-stopped \
+  -p 19892:19892 \
+  -v ./data:/data \
+  -e APP_MODE=web \
+  -e CONSOLE_USERNAME=admin \
+  -e CONSOLE_PASSWORD=你的控制台密码 \
+  -e ROCOM_API_KEY=你的接口Key \
+  -e FEISHU_WEBHOOK=你的飞书Webhook地址 \
+  linxi5013/roco-serverchan-notifier:latest
+```
+
+### Docker Compose（原版 - 仅文字推送）
+
+```yaml
+services:
+  roco-serverchan-notifier:
+    image: linxi5013/roco-serverchan-notifier:latest
+    container_name: roco-serverchan-notifier
+    restart: unless-stopped
+    ports:
+      - "19892:19892"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: Asia/Shanghai
+      APP_MODE: web
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 19892
+      CONSOLE_USERNAME: admin
+      CONSOLE_PASSWORD: ${CONSOLE_PASSWORD:-}
+      ROCOM_API_KEY: ${ROCOM_API_KEY:-}
+      FEISHU_WEBHOOK: ${FEISHU_WEBHOOK:-}
+```
+
 ## ⚙️ 飞书配置说明
 
 要使用图片推送功能，需要在飞书开放平台创建应用并获取凭证：
@@ -126,7 +172,7 @@ FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
 4. 创建 Webhook 机器人并获取 Webhook 地址
 5. 将以上信息填入环境变量
 
-**必需环境变量：**
+**必需环境变量（飞书图片模式）：**
 
 | 变量 | 说明 |
 |------|------|
@@ -159,6 +205,7 @@ FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
 | 图片渲染 | 无 | Pillow 渲染商品卡片 |
 | 图片上传 | 无 | 飞书 Open API |
 | 降级方案 | 无 | 图片失败回退卡片 |
+| 镜像标签 | `linxi5013/roco-serverchan-notifier:latest` | `ghcr.io/boater-man/roco-serverchan-notifier:image-feishu` |
 
 ## 📖 原版文档
 
