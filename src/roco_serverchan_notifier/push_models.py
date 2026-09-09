@@ -13,7 +13,6 @@ class NotificationMessage:
     title: str
     body: str
     markdown: str
-    image_data: bytes | None = None
 
 
 @dataclass(frozen=True)
