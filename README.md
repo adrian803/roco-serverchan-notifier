@@ -1,227 +1,271 @@
-# 洛克王国世界远行商人推送控制台（飞书图片增强版）
+# 洛克王国世界远行商人推送控制台
 
-[![Docker Image](https://img.shields.io/badge/ghcr.io-boater--man%2Froco--serverchan--notifier:image--feishu-2496ed?logo=docker&logoColor=white)](https://github.com/boater-man/roco-serverchan-notifier/pkgs/container/roco-serverchan-notifier)
-[![CI](https://github.com/boater-man/roco-serverchan-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/boater-man/roco-serverchan-notifier/actions/workflows/ci.yml)
+[![Docker Image](https://img.shields.io/badge/docker-linxi5013%2Froco--serverchan--notifier-2496ed?logo=docker&logoColor=white)](https://hub.docker.com/r/linxi5013/roco-serverchan-notifier)
+[![CI](https://github.com/adrian803/roco-serverchan-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/adrian803/roco-serverchan-notifier/actions/workflows/ci.yml)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-_worker.js-F6821F?logo=cloudflare&logoColor=white)](releases/cloudflare-worker/_worker.js)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Fork 自 [linxi5013/roco-serverchan-notifier](https://github.com/linxi5013/roco-serverchan-notifier)**，在原版基础上增加了**飞书通道图片直接推送**功能。
+监控《洛克王国世界》远行商人刷新状态的推送服务。提供 **Docker 部署**（含 Web 控制台）、**GitHub Actions 定时推送**和 **Cloudflare Workers 免费托管**三种方式，将刷新结果推送到 12 种主流推送通道。
 
-监控《洛克王国世界》远行商人刷新状态，支持 **12 种推送通道**，本 Fork 重点增强了飞书通道的图片推送能力。
+推送内容以文字和 Markdown 为主，不内置图片渲染和图片推送逻辑。
 
-## ✨ 本 Fork 改进：飞书图片直接推送
+> 本项目基于 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供的《洛克王国世界》数据源开发，只负责查询、整理和推送结果，不提供也不分发数据源 `ROCOM_API_KEY`。
+>
+> 如果你还没决定先用哪个推送通道，当前优先推荐 [Server 酱](https://sct.ftqq.com/r/1636)。仓库维护者目前主要实测的也是 Server 酱；该链接包含推荐参数，如后续发生付费订阅，可能为项目维护者带来佣金。
 
-### 推送效果示例
+## 目录
 
-<img src="docs/images/feishu-merchant-card.png" alt="飞书推送效果 - 远行商人商品卡片" width="400">
+[项目简介](#项目简介) · [截图](#截图) · [部署方式选择](#部署方式选择) · [快速开始](#快速开始) · [首次配置](#首次配置) · [常见问题](#常见问题) · [安全提醒](#安全提醒) · [文档导航](#文档导航) · [贡献 / 许可 / 鸣谢](#贡献--许可--鸣谢)
 
-*飞书群内直接展示的商品卡片图片，包含商品名称、价格、限购数量和剩余时间*
+## 项目简介
 
-### 原版问题
+- 支持 12 种推送通道：Server 酱、PushPlus、Telegram、Discord、企业微信、Bark、钉钉、飞书、ntfy、Gotify 等
+- 文档示例默认以 Server 酱为主；如果你只是想先跑通一条，建议优先从 Server 酱开始
+- 默认北京时间 `08:05,12:05,16:05,20:05` 推送，正好卡在远行商人刷新后 5 分钟
+- 支持多通道同时发送、单通道发送、主备失败切换三种策略
+- Docker 版自带 Web 控制台，适合页面化配置和手动测试通道
+- 敏感字段保存后不回显，推送异常和 HTTP 错误会自动脱敏
 
-原版飞书通道仅支持文字推送，图片渲染后只能保存到本地或以文字描述替代，无法在飞书群内直接展示商品卡片图片。
+## 截图
 
-### 改进方案
+| 登录页 | 控制台 |
+|:------:|:------:|
+| <img src="docs/images/login.png" alt="登录页" width="380"> | <img src="docs/images/console.png" alt="控制台" width="380"> |
 
-本 Fork 通过飞书 Open API 实现图片直接推送到群聊：
+Server 酱推送效果：
 
-```
-定时任务触发 (08:05 / 12:05 / 16:05 / 20:05)
-    ↓
-调用洛克王国 API 获取远行商人信息
-    ↓
-Pillow 渲染商品卡片图片
-    ↓
-飞书 Open API 上传图片 → 获取 image_key
-    ↓
-Webhook 发送图片消息到飞书群
-    ↓
-(降级) 上传失败时回退到卡片文本消息
-```
+<img src="docs/images/serverchan-push.png" alt="Server 酱推送效果" width="320">
 
-**核心改动：**
-- 通过 `FEISHU_APP_ID` + `FEISHU_APP_SECRET` 获取 `tenant_access_token`（带缓存）
-- 调用 `im/v1/images` API 上传图片，获取 `image_key`
-- 通过 Webhook 以 `msg_type: "image"` 直接发送图片
-- 图片同时保存到 `/data/images/` 供宿主机脚本备用
+## 部署方式选择
 
-## 📦 镜像
+| | Docker | GitHub Actions | Cloudflare Workers |
+|---|:---:|:---:|:---:|
+| **需要服务器** | 是 | 否 | 否 |
+| **Web 控制台** | 有 | 无 | 无 |
+| **费用** | 服务器费用 | 免费 | 免费 |
+| **定时精确度** | 精确到秒 | 延迟几分钟 | 延迟 1-2 分钟 |
+| **长期稳定性** | 高 | 中（可能被暂停） | 高 |
+| **配置方式** | 页面 / 环境变量 | GitHub Secrets / Variables | Worker 控制台变量 / Wrangler |
+| **适合场景** | 长期运行、需要 Web 管理 | 已有 GitHub 仓库、偶尔使用 | 免费长期托管 |
 
-**本 Fork 镜像（飞书图片增强版）：**
+**怎么选：**
 
-```
-ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
-```
+- 想最快完成第一次成功推送，而且希望以后都在网页里改配置：选 **Docker Web 控制台**
+- 想免费长期托管，不想维护服务器：选 **Cloudflare Workers**
+- 已经在用 GitHub 仓库，并且能接受偶发延迟：选 **GitHub Actions**
 
-**原版镜像（标准版）：**
+## 快速开始
 
-```
-linxi5013/roco-serverchan-notifier:latest
-```
+下面保留三条最常用的首次部署路径。想看完整部署方式、更新方法和迁移说明，请直接跳到 [文档导航](#文档导航)。
 
-> 💡 如果只需要飞书图片推送功能，请使用本 Fork 镜像。如果使用其他推送通道或不需要图片功能，建议使用原版镜像。
+### Docker 自动托管
 
-## 🚀 部署
-
-### Docker（飞书图片模式）
+适合已经知道自己要用哪个推送通道，只想尽快跑起来。
 
 ```bash
 docker run -d \
   --name roco-serverchan-notifier \
   --restart unless-stopped \
-  -p 19892:19892 \
-  -v ./data:/data \
-  -e APP_MODE=web \
-  -e CONSOLE_USERNAME=admin \
-  -e CONSOLE_PASSWORD=你的控制台密码 \
   -e ROCOM_API_KEY=你的接口Key \
-  -e FEISHU_WEBHOOK=你的飞书Webhook地址 \
-  -e FEISHU_APP_ID=你的飞书AppID \
-  -e FEISHU_APP_SECRET=你的飞书AppSecret \
-  -e RENDER_IMAGE=true \
-  -e SCHEDULE_TIMES=08:05,12:05,16:05,20:05 \
-  ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
-```
-
-### Docker Compose（飞书图片模式）
-
-```yaml
-services:
-  roco-serverchan-notifier:
-    image: ghcr.io/boater-man/roco-serverchan-notifier:image-feishu
-    container_name: roco-serverchan-notifier
-    restart: unless-stopped
-    ports:
-      - "19892:19892"
-    volumes:
-      - ./data:/data
-    environment:
-      TZ: Asia/Shanghai
-      APP_MODE: web
-      WEB_HOST: 0.0.0.0
-      WEB_PORT: 19892
-      CONSOLE_USERNAME: admin
-      CONSOLE_PASSWORD: ${CONSOLE_PASSWORD:-}
-      ROCOM_API_KEY: ${ROCOM_API_KEY:-}
-      # 飞书通道配置
-      FEISHU_WEBHOOK: ${FEISHU_WEBHOOK:-}
-      FEISHU_APP_ID: ${FEISHU_APP_ID:-}
-      FEISHU_APP_SECRET: ${FEISHU_APP_SECRET:-}
-      # 启用图片渲染
-      RENDER_IMAGE: "true"
-      # 定时推送时间
-      SCHEDULE_TIMES: "08:05,12:05,16:05,20:05"
-```
-
-`.env` 文件示例：
-
-```env
-CONSOLE_PASSWORD=your_password
-ROCOM_API_KEY=your_rocom_key
-FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
-FEISHU_APP_ID=cli_xxxxxxxxxx
-FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
-```
-
-### Docker（原版 - 仅文字推送）
-
-```bash
-docker run -d \
-  --name roco-serverchan-notifier \
-  --restart unless-stopped \
-  -p 19892:19892 \
-  -v ./data:/data \
-  -e APP_MODE=web \
-  -e CONSOLE_USERNAME=admin \
-  -e CONSOLE_PASSWORD=你的控制台密码 \
-  -e ROCOM_API_KEY=你的接口Key \
-  -e FEISHU_WEBHOOK=你的飞书Webhook地址 \
+  -e SERVERCHAN_SENDKEY=你的Server酱SendKey \
   linxi5013/roco-serverchan-notifier:latest
 ```
 
-### Docker Compose（原版 - 仅文字推送）
+这种模式不会监听 `19892`，不需要配置 `CONSOLE_USERNAME`、`CONSOLE_PASSWORD`、`WEB_PORT`。如果你想换成 PushPlus、Telegram 等其他通道，变量名见 [环境变量参考](docs/reference/environment-variables.md)。
 
-```yaml
-services:
-  roco-serverchan-notifier:
-    image: linxi5013/roco-serverchan-notifier:latest
-    container_name: roco-serverchan-notifier
-    restart: unless-stopped
-    ports:
-      - "19892:19892"
-    volumes:
-      - ./data:/data
-    environment:
-      TZ: Asia/Shanghai
-      APP_MODE: web
-      WEB_HOST: 0.0.0.0
-      WEB_PORT: 19892
-      CONSOLE_USERNAME: admin
-      CONSOLE_PASSWORD: ${CONSOLE_PASSWORD:-}
-      ROCOM_API_KEY: ${ROCOM_API_KEY:-}
-      FEISHU_WEBHOOK: ${FEISHU_WEBHOOK:-}
+### Docker Web 控制台
+
+适合想通过页面管理配置、测试通道、观察运行状态的场景。
+
+```bash
+docker run -d \
+  --name roco-serverchan-notifier \
+  --restart unless-stopped \
+  -p 19892:19892 \
+  -v ./data:/data \
+  -e APP_MODE=web \
+  -e CONSOLE_USERNAME=admin \
+  -e CONSOLE_PASSWORD=你的控制台密码 \
+  linxi5013/roco-serverchan-notifier:latest
 ```
 
-## ⚙️ 飞书配置说明
+启动后打开 `http://服务器IP:19892`。如果你更习惯 `docker compose`，可以从 [.env.example](.env.example) 起步，再配合 [环境变量参考](docs/reference/environment-variables.md) 使用。
 
-要使用图片推送功能，需要在飞书开放平台创建应用并获取凭证：
+### Cloudflare Workers（控制台粘贴）
 
-1. 访问 [飞书开放平台](https://open.feishu.cn/) 创建企业自建应用
-2. 获取 `App ID` 和 `App Secret`
-3. 在应用权限中添加 `im:resource`（上传图片）权限
-4. 创建 Webhook 机器人并获取 Webhook 地址
-5. 将以上信息填入环境变量
+适合想免费长期托管，又不想准备本地 Node.js 环境的场景。
 
-**必需环境变量（飞书图片模式）：**
+1. 打开 Cloudflare Dashboard → Workers & Pages → Create Worker
+2. 删除默认代码，把 [releases/cloudflare-worker/_worker.js](releases/cloudflare-worker/_worker.js) 的完整内容粘贴进去并保存部署
+3. 在 Settings → Variables and Secrets 中至少添加：
 
-| 变量 | 说明 |
+| 名称 | 说明 |
 |------|------|
-| `FEISHU_WEBHOOK` | 飞书 Webhook 地址 |
-| `FEISHU_APP_ID` | 飞书应用 App ID |
-| `FEISHU_APP_SECRET` | 飞书应用 App Secret |
-| `RENDER_IMAGE` | 设为 `true` 启用图片渲染 |
+| `ROCOM_API_KEY` | 数据源接口 Key（必需） |
+| `SERVERCHAN_SENDKEY` | Server 酱 SendKey；也可以换成其他任一推送通道 |
+| `TRIGGER_TOKEN` | 可选，用来保护 `/trigger` 手动触发端点 |
 
-## 📡 支持的推送通道
+4. 在 Triggers → Cron Triggers 中添加 `5 0,4,8,12 * * *`
+5. 访问 `https://<worker名>.workers.dev/`，确认返回健康检查结果
 
-| 通道 | 环境变量 | 图片支持 |
-|------|----------|----------|
-| 飞书 | `FEISHU_WEBHOOK` + `FEISHU_APP_ID` + `FEISHU_APP_SECRET` | ✅ 直接推送 |
-| Server 酱 | `SERVERCHAN_SENDKEY` | ❌ 纯文字 |
-| PushPlus | `PUSHPLUS_TOKEN` | ❌ 纯文字 |
-| Telegram | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | ❌ 纯文字 |
-| Discord | `DISCORD_WEBHOOK` | ❌ 纯文字 |
-| 企业微信 | `WECOM_CORPID` + `WECOM_SECRET` + `WECOM_AGENTID` | ❌ 纯文字 |
-| 钉钉 | `DINGTALK_WEBHOOK` + `DINGTALK_SECRET` | ❌ 纯文字 |
-| Bark | `BARK_DEVICE_KEY` | ❌ 纯文字 |
-| ntfy | `NTFY_TOPIC` | ❌ 纯文字 |
-| Gotify | `GOTIFY_APP_TOKEN` | ❌ 纯文字 |
-| WxPusher | `WXPUSHER_APP_TOKEN` | ❌ 纯文字 |
+如果想用 Workers Builds、Wrangler 项目部署或仓库自带的一键脚本（[Windows PowerShell](scripts/deploy-cf-worker.ps1) / [Windows 双击](scripts/deploy-cf-worker.cmd) / [Linux / macOS](scripts/deploy-cf-worker.sh)），请看 [Cloudflare Workers 完整部署指南](docs/deployment/cloudflare-workers.md)。
 
-## 🔧 与原版差异
+### GitHub Actions（Fork 仓库）
 
-| 功能 | 原版 | 本 Fork |
-|------|------|---------|
-| 飞书推送 | 纯文字 | **图片 + 卡片** |
-| 图片渲染 | 无 | Pillow 渲染商品卡片 |
-| 图片上传 | 无 | 飞书 Open API |
-| 降级方案 | 无 | 图片失败回退卡片 |
-| 镜像标签 | `linxi5013/roco-serverchan-notifier:latest` | `ghcr.io/boater-man/roco-serverchan-notifier:image-feishu` |
+适合已有 GitHub 仓库、能接受偶发延迟的场景。不需要服务器，也不需要本地环境。
 
-## 📖 原版文档
+1. Fork 本仓库（或在已有仓库中复制 `.github/workflows/scheduled-push.yml`）
+2. 进入仓库 → **Settings** → **Secrets and variables** → **Actions**，添加：
 
-完整功能说明、环境变量参考、其他部署方式（GitHub Actions、Cloudflare Workers）请参考原版文档：
+| 名称 | 说明 |
+|------|------|
+| `ROCOM_API_KEY` | 数据源接口 Key（必需） |
+| `SERVERCHAN_SENDKEY` | Server 酱 SendKey；也可以换成其他任一推送通道 |
 
-- [原版 README](https://github.com/linxi5013/roco-serverchan-notifier/blob/main/README.md)
+3. 确认默认分支启用了 `scheduled-push.yml` 工作流
+4. 在 Actions 页面手动触发一次，验证推送是否成功
+
+定时已预设为北京时间 `08:05,12:05,16:05,20:05`，仓库长期不活跃可能被 GitHub 暂停。更稳定的免费方案推荐 [Cloudflare Workers](#cloudflare-workers控制台粘贴)。完整说明见 [GitHub Actions 定时推送说明](docs/deployment/github-actions.md)。
+
+## 首次配置
+
+### Docker Web 控制台
+
+进入控制台后按这个顺序配置最稳：
+
+1. **基础配置**：填写 `ROCOM_API_KEY`
+2. **数据接口**：通常保持默认即可
+3. **北京时间定时**：默认 `08:05,12:05,16:05,20:05`
+4. **通道配置**：添加一个推送通道并填入 token / webhook
+5. 点击单通道 **测试**，确认能收到消息
+6. 选择发送策略并 **保存配置**
+7. 点击 **立即执行** 做一次手动检查
+
+配置保存到 `./data/config.json`。后续如果页面和 `.env` 不一致，优先以 `config.json` 为准。
+
+### 环境变量模式（Docker 自动托管 / Workers / GitHub Actions）
+
+不走 Web 控制台时，首次成功推送至少需要 `ROCOM_API_KEY` 加上一个推送通道变量。完整字段说明见 [环境变量参考](docs/reference/environment-variables.md) 和 [推送通道与发送策略](docs/reference/providers-and-delivery.md)。
+
+## 常见问题
+
+<details>
+<summary><b>如何获取 ROCOM_API_KEY？</b></summary>
+
+请按 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 项目或相关社区的规则获取。本项目不提供、不分发 API Key。
+
+</details>
+
+<details>
+<summary><b>三种部署方式怎么选？</b></summary>
+
+- 需要 Web 控制台管理配置 → **Docker**
+- 想免费且稳定运行 → **Cloudflare Workers**
+- 已有 GitHub 仓库、偶尔用 → **GitHub Actions**
+
+三种方式的推送逻辑完全一致，区别在于配置方式和运维成本。
+
+</details>
+
+<details>
+<summary><b>默认控制台密码在哪里？</b></summary>
+
+如果 `CONSOLE_PASSWORD` 为空，控制台首次启动时会随机生成强密码，并在日志中打印 `控制台默认密码: ...`。Docker Compose 用户可运行 `docker compose logs roco-serverchan-notifier` 查看。密码哈希会保存到 `./data/config.json` 的 `console_auth` 段，后续重启沿用同一密码且不会再次打印明文。
+
+忘记密码时，可以临时设置 `CONSOLE_PASSWORD=新密码` 覆盖登录，或停止容器后删除 `./data/config.json` 里的 `console_auth` 段再重启，让程序重新生成默认密码。仅在可信本机环境调试时，可以显式设置 `CONSOLE_ALLOW_EMPTY_PASSWORD=true` 允许空密码。
+
+</details>
+
+<details>
+<summary><b>为什么没有启动 Web 控制台？</b></summary>
+
+默认 `APP_MODE=auto` 会在配置齐全时只启动调度器，不监听 `19892`。设置 `APP_MODE=web` 后重建容器即可强制启动。
+
+</details>
+
+<details>
+<summary><b>为什么修改 .env 后页面没变？</b></summary>
+
+控制台保存过配置后，会优先读取 `./data/config.json`。后续更推荐在 Web 控制台修改；如要完全使用 `.env` 默认值，需先备份并移走 `config.json`。
+
+</details>
+
+<details>
+<summary><b>为什么收不到推送？</b></summary>
+
+**Docker 版：** 先在“通道配置”里点击单通道“测试”。如果测试失败，检查 token / webhook 是否正确、服务商是否限流、服务器是否能访问对应推送服务。
+
+**Cloudflare Workers 版：** 手动触发 `curl <worker-url>/trigger`，查看返回结果。若配置了 `TRIGGER_TOKEN`，使用 `curl '<worker-url>/trigger?token=你的token'`。执行日志优先在 Cloudflare Dashboard → Workers → 你的 Worker → Logs 查看；Wrangler 项目部署也可以在 `cloudflare-worker` 目录运行 `npm run tail`。
+
+**GitHub Actions 版：** 查看 Actions 运行日志，确认 secrets 是否配置正确。完整说明见 [GitHub Actions 定时推送说明](docs/deployment/github-actions.md)。
+
+</details>
+
+<details>
+<summary><b>GitHub Actions 定时不准怎么办？</b></summary>
+
+GitHub Actions 的 cron 不保证精确执行，可能延迟几分钟，仓库长期不活跃还会被暂停。推荐迁移到 [Cloudflare Workers](docs/deployment/cloudflare-workers.md)，同样免费但更稳定。
+
+</details>
+
+<details>
+<summary><b>如何更新到最新版本？</b></summary>
+
+- **Docker：** `docker compose pull && docker compose up -d`
+- **Cloudflare Workers：** 按部署方式更新，见 [Cloudflare Workers 完整部署指南](docs/deployment/cloudflare-workers.md)
+- **GitHub Actions：** 同步默认分支上的 workflow 和代码即可，见 [GitHub Actions 定时推送说明](docs/deployment/github-actions.md)
+
+</details>
+
+## 安全提醒
+
+### Docker 版
+
+- 默认 `APP_MODE=auto`：配置齐时容器只启动调度器，不启动 Web 控制台；缺少配置时才启动控制台方便首次配置
+- 如果使用 `APP_MODE=web`，控制台会监听 `0.0.0.0:19892`；公开部署前请设置强密码，并限制访问来源
+- `CONSOLE_PASSWORD` 为空时会在首次启动生成默认强密码，明文只出现在启动日志里
+- 不要提交 `./data/config.json`，其中可能包含推送 token、接口 Key 和控制台密码哈希
+
+### Cloudflare Workers 版
+
+- Secrets 通过 Cloudflare Worker 控制台加密存储，不会出现在仓库代码里
+- `/trigger` 默认开放；如果 Worker URL 会被分享，建议配置 `TRIGGER_TOKEN`
+- 使用一键脚本或 Wrangler 时，不要把 `CLOUDFLARE_API_TOKEN` 留在长期 shell 环境里
+
+## 文档导航
+
+### 部署
+
+- [Cloudflare Workers 完整部署指南](docs/deployment/cloudflare-workers.md)
+- [GitHub Actions 定时推送说明](docs/deployment/github-actions.md)
+
+### 配置
+
 - [环境变量参考](docs/reference/environment-variables.md)
 - [推送通道与发送策略](docs/reference/providers-and-delivery.md)
-- [Cloudflare Workers 部署](docs/deployment/cloudflare-workers.md)
-- [GitHub Actions 部署](docs/deployment/github-actions.md)
+- [.env.example](.env.example)
 
-## 🙏 致谢
+### 开发与维护
 
-- 原版项目：[linxi5013/roco-serverchan-notifier](https://github.com/linxi5013/roco-serverchan-notifier)
-- 数据源：[Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供的《洛克王国世界》接口
+- [DEVELOPMENT.md](DEVELOPMENT.md)
+- Python / Worker 的测试、构建与 `_worker.js` 同步检查命令统一写在 `DEVELOPMENT.md`
 
-## 📄 许可
+## 贡献 / 许可 / 鸣谢
+
+欢迎提交 issue 和 pull request。适合贡献的方向：
+
+- 新推送通道
+- 控制台交互优化
+- 部署文档和参考文档改进
+- 测试用例
+
+如果要新增推送通道、调整调度器、修改控制台认证或改 Worker 构建流程，请先阅读 [DEVELOPMENT.md](DEVELOPMENT.md)。
+
+远行商人数据来自 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供的接口。本仓库只负责调用接口并展示、推送结果，不内置、不分发 `ROCOM_API_KEY`，也不代为申请 Key。请按数据源项目或相关社区的规则获取 Key。
+
+本项目不会绕过数据源服务端限制，接口调用频率以数据源后端实际限制为准。请合理设置定时任务，避免给数据源服务带来不必要的压力。
+
+本项目是个人学习和自用工具，和游戏官方、WeGame、各推送平台均无从属关系。若需直接使用或改造 Entropy-Increase-Team 的代码，会按其 AGPL-3.0 协议要求处理。
 
 本项目使用 [MIT License](LICENSE)。

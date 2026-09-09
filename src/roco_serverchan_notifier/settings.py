@@ -66,7 +66,6 @@ class Settings:
     failover_order: list[str]
     providers: list[ProviderConfig]
     include_price_info: bool = False
-    render_image: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -154,7 +153,6 @@ class Settings:
             "schedule_times": self.schedule_times,
             "run_on_start": self.run_on_start,
             "include_price_info": self.include_price_info,
-            "render_image": self.render_image,
             "delivery_mode": self.delivery_mode,
             "selected_provider": self.selected_provider,
             "failover_order": list(self.failover_order),
