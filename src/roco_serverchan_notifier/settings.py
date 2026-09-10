@@ -66,6 +66,7 @@ class Settings:
     failover_order: list[str]
     providers: list[ProviderConfig]
     include_price_info: bool = False
+    render_image: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -83,6 +84,7 @@ class Settings:
             schedule_times=schedule_times,
             run_on_start=env_bool("RUN_ON_START", False),
             include_price_info=env_bool("INCLUDE_PRICE_INFO", False),
+            render_image=env_bool("RENDER_IMAGE", False),
             delivery_mode=os.environ.get("DELIVERY_MODE", "all").strip() or "all",
             selected_provider=os.environ.get("SELECTED_PROVIDER", "").strip() or default_provider_id,
             failover_order=provider_order(providers),
@@ -138,6 +140,7 @@ class Settings:
             schedule_times=schedule_times,
             run_on_start=coerce_bool(data.get("run_on_start"), base.run_on_start),
             include_price_info=coerce_bool(data.get("include_price_info"), base.include_price_info),
+            render_image=coerce_bool(data.get("render_image"), base.render_image),
             delivery_mode=delivery_mode,
             selected_provider=selected_provider,
             failover_order=provider_order(providers),
@@ -153,6 +156,7 @@ class Settings:
             "schedule_times": self.schedule_times,
             "run_on_start": self.run_on_start,
             "include_price_info": self.include_price_info,
+            "render_image": self.render_image,
             "delivery_mode": self.delivery_mode,
             "selected_provider": self.selected_provider,
             "failover_order": list(self.failover_order),
