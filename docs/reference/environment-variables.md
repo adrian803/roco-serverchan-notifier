@@ -38,6 +38,9 @@
 | `RUN_ON_START` | `false` | 容器启动完成后是否立即执行一次检查。 |
 | `NOTIFY_EMPTY` | `false` | 当前没有商品时是否仍然发一条“空结果”通知。 |
 | `INCLUDE_PRICE_INFO` | `false` | 推送中是否附带限购数量、单价和总价信息。 |
+| `RENDER_IMAGE` | `false` | Python / Docker 商品图片卡片开关。支持 Telegram、Discord、企业微信群机器人、企业微信应用和飞书；其他通道仍发文字。配置文件中的 `render_image` 优先。 |
+| `FEISHU_APP_ID` | 空 | 飞书图片上传使用的应用 ID；只发送文字时不需要。 |
+| `FEISHU_APP_SECRET` | 空 | 飞书图片上传使用的应用密钥，与 `FEISHU_APP_ID` 配套；仅从 Python 进程环境读取，不通过控制台回显。 |
 | `HTTP_TIMEOUT` | `30` | 请求超时时间，单位秒；同时影响数据源请求和推送请求。 |
 
 ### 无控制台通道变量

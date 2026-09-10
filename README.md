@@ -8,7 +8,7 @@
 
 监控《洛克王国世界》远行商人刷新状态的推送服务。提供 **Docker 部署**（含 Web 控制台）、**GitHub Actions 定时推送**和 **Cloudflare Workers 免费托管**三种方式，将刷新结果推送到 12 种主流推送通道。
 
-推送内容以文字和 Markdown 为主，不内置图片渲染和图片推送逻辑。
+默认推送文字和 Markdown；Python / Docker 版可通过 `RENDER_IMAGE=true` 启用商品图片卡片。Cloudflare Workers 版保持文字推送。
 
 > 本项目基于 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供的《洛克王国世界》数据源开发，只负责查询、整理和推送结果，不提供也不分发数据源 `ROCOM_API_KEY`。
 >
@@ -92,6 +92,16 @@ docker run -d \
 
 启动后打开 `http://服务器IP:19892`。如果你更习惯 `docker compose`，可以从 [.env.example](.env.example) 起步，再配合 [环境变量参考](docs/reference/environment-variables.md) 使用。
 
+### 可选图片卡片（Python / Docker）
+
+设置 `RENDER_IMAGE=true` 后，程序会用 Pillow 渲染商品卡片。Telegram、Discord、企业微信群机器人、企业微信应用和飞书支持图片，其他通道继续发送文字。渲染失败会回退文字；默认 `false` 保持现有文字推送行为。
+
+<img src="docs/images/feishu-merchant-card.png" alt="商品图片卡片推送示例" width="400">
+
+飞书图片推送还需设置 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`，并为对应飞书应用启用图片上传权限；`FEISHU_WEBHOOK`、可选的 `FEISHU_SECRET` 仍用于群机器人发消息。其他图片通道沿用原有通道凭据。
+
+源码部署可在 `.env` 设置这些变量，再运行 `docker compose up -d --build`。已有 `data/config.json` 时，其中的 `render_image` 优先于环境变量：可在停止容器后备份配置，并将该字段设为 `true`。Web 页面目前没有图片开关；单通道“测试”发送文字测试消息，实际商品推送由上述开关控制。
+
 ### Cloudflare Workers（控制台粘贴）
 
 适合想免费长期托管，又不想准备本地 Node.js 环境的场景。
@@ -164,7 +174,7 @@ docker run -d \
 - 想免费且稳定运行 → **Cloudflare Workers**
 - 已有 GitHub 仓库、偶尔用 → **GitHub Actions**
 
-三种方式的推送逻辑完全一致，区别在于配置方式和运维成本。
+三种方式的文字推送规则一致；图片渲染功能仅在 Python / Docker 运行时提供。
 
 </details>
 
@@ -267,5 +277,7 @@ GitHub Actions 的 cron 不保证精确执行，可能延迟几分钟，仓库�
 本项目不会绕过数据源服务端限制，接口调用频率以数据源后端实际限制为准。请合理设置定时任务，避免给数据源服务带来不必要的压力。
 
 本项目是个人学习和自用工具，和游戏官方、WeGame、各推送平台均无从属关系。若需直接使用或改造 Entropy-Increase-Team 的代码，会按其 AGPL-3.0 协议要求处理。
+
+图片卡片功能由 [boater-man 在 PR #1](https://github.com/adrian803/roco-serverchan-notifier/pull/1) 中贡献。
 
 本项目使用 [MIT License](LICENSE)。

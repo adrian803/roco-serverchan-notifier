@@ -44,6 +44,9 @@ services:
       DINGTALK_SECRET: ${DINGTALK_SECRET:-}
       FEISHU_WEBHOOK: ${FEISHU_WEBHOOK:-}
       FEISHU_SECRET: ${FEISHU_SECRET:-}
+      # Python image-upload credentials (not Worker/provider-manifest fields).
+      FEISHU_APP_ID: ${FEISHU_APP_ID:-}
+      FEISHU_APP_SECRET: ${FEISHU_APP_SECRET:-}
       NTFY_BASE_URL: ${NTFY_BASE_URL:-}
       NTFY_TOPIC: ${NTFY_TOPIC:-}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
@@ -54,6 +57,7 @@ services:
       GOTIFY_PRIORITY: ${GOTIFY_PRIORITY:-}
       NOTIFY_EMPTY: ${NOTIFY_EMPTY:-false}
       INCLUDE_PRICE_INFO: ${INCLUDE_PRICE_INFO:-false}
+      RENDER_IMAGE: ${RENDER_IMAGE:-false}
       DELIVERY_MODE: ${DELIVERY_MODE:-all}
       HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
       SCHEDULE_TIMES: ${SCHEDULE_TIMES:-08:05,12:05,16:05,20:05}
