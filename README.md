@@ -8,7 +8,7 @@
 
 监控《洛克王国世界》远行商人刷新状态的推送服务。提供 **Docker 部署**（含 Web 控制台）、**GitHub Actions 定时推送**和 **Cloudflare Workers 免费托管**三种方式，将刷新结果推送到 12 种主流推送通道。
 
-推送内容以文字和 Markdown 为主，不内置图片渲染和图片推送逻辑。
+推送内容默认以文字和 Markdown 为主；Docker / 本地 Python 版可按需开启商品图片卡片。
 
 > 本项目基于 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供的《洛克王国世界》数据源开发，只负责查询、整理和推送结果，不提供也不分发数据源 `ROCOM_API_KEY`。
 >
@@ -16,7 +16,7 @@
 
 ## 目录
 
-[项目简介](#项目简介) · [截图](#截图) · [部署方式选择](#部署方式选择) · [快速开始](#快速开始) · [首次配置](#首次配置) · [常见问题](#常见问题) · [安全提醒](#安全提醒) · [文档导航](#文档导航) · [贡献 / 许可 / 鸣谢](#贡献--许可--鸣谢)
+[项目简介](#项目简介) · [截图](#截图) · [部署方式选择](#部署方式选择) · [快速开始](#快速开始) · [首次配置](#首次配置) · [可选推送选项](#可选推送选项) · [常见问题](#常见问题) · [安全提醒](#安全提醒) · [文档导航](#文档导航) · [贡献 / 许可 / 鸣谢](#贡献--许可--鸣谢)
 
 ## 项目简介
 
@@ -24,6 +24,7 @@
 - 文档示例默认以 Server 酱为主；如果你只是想先跑通一条，建议优先从 Server 酱开始
 - 默认北京时间 `08:05,12:05,16:05,20:05` 推送，正好卡在远行商人刷新后 5 分钟
 - 支持多通道同时发送、单通道发送、主备失败切换三种策略
+- 支持可选商品图片卡片：开启 `RENDER_IMAGE` 后，Telegram、Discord、企业微信群机器人、企业微信应用和飞书会发送图片，其他通道继续发送文字
 - Docker 版自带 Web 控制台，适合页面化配置和手动测试通道
 - 敏感字段保存后不回显，推送异常和 HTTP 错误会自动脱敏
 
@@ -147,6 +148,28 @@ docker run -d \
 ### 环境变量模式（Docker 自动托管 / Workers / GitHub Actions）
 
 不走 Web 控制台时，首次成功推送至少需要 `ROCOM_API_KEY` 加上一个推送通道变量。完整字段说明见 [环境变量参考](docs/reference/environment-variables.md) 和 [推送通道与发送策略](docs/reference/providers-and-delivery.md)。
+
+## 可选推送选项
+
+在 Docker 或本地 Python 运行模式中，可以通过 `.env`、`docker run -e` 或容器环境变量设置以下选项：
+
+| 变量 | 示例 | 作用 |
+|------|------|------|
+| `INCLUDE_PRICE_INFO` | `true` | 在推送中附带商品限购数量、单价和总价。 |
+| `RENDER_IMAGE` | `true` | 生成商品图片卡片。支持 Telegram、Discord、企业微信群机器人、企业微信应用和飞书；其他通道仍发送文字。默认关闭。 |
+| `DELIVERY_MODE` | `failover` | 发送策略，可选 `all`、`single` 或 `failover`。 |
+| `HTTP_TIMEOUT` | `30` | 设置数据接口和推送请求的超时时间，单位为秒。 |
+
+飞书启用图片推送时，还需要同时设置 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`，并保留 `FEISHU_WEBHOOK`。应用凭据只从 Docker / Python 进程环境读取，不通过控制台回显。图片渲染或上传失败时，程序会自动回退为原文字消息。
+
+```env
+RENDER_IMAGE=true
+FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
+FEISHU_APP_ID=cli_xxxxxxxxxx
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
+```
+
+`INCLUDE_PRICE_INFO`、`DELIVERY_MODE` 和 `HTTP_TIMEOUT` 也可在 GitHub Actions 与 Cloudflare Workers 的变量中设置。`RENDER_IMAGE` 仅适用于 Docker / 本地 Python 版；Cloudflare Workers 版本不使用此选项。当前 GitHub Actions 工作流默认关闭图片渲染，如需在自定义工作流中启用，需要传入 `RENDER_IMAGE` 以及图片通道所需的凭据。已有 `./data/config.json` 时，配置文件中的 `render_image` 值优先。
 
 ## 常见问题
 
